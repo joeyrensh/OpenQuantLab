@@ -980,6 +980,7 @@ a:active { color: var(--text-color); text-decoration: underline; }
   font-weight: 400;
   height: 45px;
   line-height: 45px;
+  text-transform: capitalize;
 }
 
 .nav-btn.middle:hover {
