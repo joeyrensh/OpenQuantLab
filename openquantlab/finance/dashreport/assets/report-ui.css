@@ -280,13 +280,29 @@
 
 @media (max-width: 767px) {
   #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 6px;
-    margin-bottom: 10px !important;
+    grid-template-columns: minmax(118px, 38%) minmax(0, 1fr);
+    column-gap: 8px;
+    row-gap: 0;
+    margin-bottom: 6px !important;
   }
 
   #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > .l2_label {
-    margin-bottom: 8px !important;
+    margin-bottom: 0 !important;
+  }
+
+  #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > :last-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+  }
+
+  #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > .l2_label {
+    margin-bottom: 2px !important;
   }
 
   #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > :last-child {
@@ -302,8 +318,9 @@
 
 @media (max-width: 550px) {
   #page-content .page {
-    padding-right: 10px;
-    padding-left: 10px;
+    width: 100% !important;
+    padding-right: 4px;
+    padding-left: 4px;
   }
 
   #page-content .kpi-container {
@@ -322,7 +339,15 @@
   #page-content .sub_page > .twelve.columns,
   #page-content .sub_page > .row > .six.columns,
   #page-content .sub_page > .row > .twelve.columns {
-    padding: 9px;
+    padding: 6px;
+  }
+
+  #page-content .settings-page .weight-config-card .card-header {
+    padding: 8px 10px;
+  }
+
+  #page-content .settings-page .weight-config-card .card-body {
+    padding: 10px 10px 12px !important;
   }
 
   #page-content .default-table .dash-spreadsheet-inner th,
