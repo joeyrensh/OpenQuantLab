@@ -1,0 +1,360 @@
+/* Report surface styling based on existing theme variables and layout classes.
+   Keep chart sizing and the light/dark theme selection in their existing owners. */
+:root {
+  --report-card-shadow: 0 3px 14px rgba(31, 60, 100, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --report-card-shadow: 0 3px 16px rgba(0, 0, 0, 0.22);
+  }
+}
+
+/* KPI cards use the current palette; sign colors remain app-defined. */
+#page-content .subtitle {
+  left: auto;
+  height: auto;
+  margin-bottom: 10px;
+  padding: 1px 0 1px 10px;
+  border-left: 3px solid var(--blue-line-color);
+  color: var(--subtitle-color);
+  text-transform: none;
+}
+
+#page-content .subtitle.padded {
+  margin-top: 0;
+  margin-bottom: 10px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+
+#page-content .product {
+  height: auto;
+  padding: 0;
+  color: var(--text-color);
+  filter: none;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+#page-content .kpi-container {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#page-content .kpi-card {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--gridcolor);
+  border-radius: 10px;
+  background: var(--background-color);
+  box-shadow: var(--report-card-shadow);
+}
+
+#page-content .kpi-card.has-divider::after {
+  display: none;
+}
+
+#page-content .kpi-label {
+  margin-bottom: 5px;
+  color: var(--text-color);
+  letter-spacing: 0.04em;
+}
+
+#page-content .kpi-value {
+  margin-bottom: 2px;
+  color: var(--text-color);
+}
+
+/* Add card surfaces without changing rows, widths, chart aspect ratios or heights. */
+#page-content .sub_page > .twelve.columns,
+#page-content .sub_page > .row > .six.columns,
+#page-content .sub_page > .row > .twelve.columns {
+  min-width: 0;
+  margin-top: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--gridcolor);
+  border-radius: 11px;
+  background: var(--background-color);
+  box-shadow: var(--report-card-shadow);
+}
+
+#page-content .sub_page > .twelve.columns {
+  margin-top: 14px;
+}
+
+#page-content .sub_page > .annual-return-card {
+  padding-bottom: 4px;
+}
+
+#page-content .sub_page > .row {
+  margin-top: 14px;
+}
+
+#page-content .chart-container {
+  min-width: 0;
+}
+
+/* Dash DataTable surfaces remain readable in either existing theme. */
+#page-content .table_custom {
+  margin-top: 0;
+}
+
+#page-content .default-table {
+  overflow: visible;
+  border: 1px solid var(--gridcolor);
+  border-radius: 8px;
+  background: var(--background-color);
+}
+
+#page-content .default-table > div:first-child {
+  color: var(--text-color);
+  background: var(--background-color);
+}
+
+#page-content .default-table > div:nth-child(2) {
+  border-radius: 7px;
+}
+
+#page-content .dash-table-container,
+#page-content .dash-spreadsheet-container,
+#page-content .dash-spreadsheet-inner {
+  background: transparent !important;
+  color: var(--text-color) !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner table {
+  border: 0 !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  background: transparent !important;
+  color: var(--text-color) !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner th:not(.dash-filter) {
+  border: 0 !important;
+  border-bottom: 1px solid var(--gridcolor) !important;
+  background: var(--kpi-background) !important;
+  color: var(--text-color) !important;
+  vertical-align: middle !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner td {
+  border: 0 !important;
+  border-bottom: 1px solid var(--gridcolor) !important;
+  vertical-align: middle !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner th .column-header-name,
+#page-content .default-table .dash-spreadsheet-inner th .column-header-name * {
+  color: inherit !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner td .dash-cell-value {
+  color: inherit !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner tr:hover td {
+  border-bottom-color: var(--blue-line-color) !important;
+}
+
+/* Inputs and buttons follow the selected app palette. */
+#page-content .form-control,
+#page-content .form-select,
+#page-content input:not([type="checkbox"]):not([type="radio"]):not(.dash-filter input),
+#page-content select,
+#page-content textarea,
+#page-content .Select-control,
+#page-content .DateInput_input,
+#page-content .json-preview-box {
+  border-color: var(--gridcolor) !important;
+  border-radius: 6px;
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+}
+
+#page-content button,
+#page-content .btn,
+#page-content .nav-btn,
+#page-content .ai-analysis-btn {
+  border-color: var(--gridcolor);
+  border-radius: 7px;
+  background: var(--background-color);
+  color: var(--text-color);
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+#page-content button:hover,
+#page-content .btn:hover,
+#page-content .nav-btn:hover {
+  border-color: var(--blue-line-color);
+  color: var(--blue-line-color);
+}
+
+#page-content .ai-analysis-panel,
+#page-content .symbol_summary_box {
+  border-color: var(--gridcolor);
+  border-radius: 9px;
+  background: var(--background-color);
+  color: var(--text-color);
+}
+
+#page-content .weight-config-card {
+  border: 1px solid var(--gridcolor) !important;
+  border-radius: 11px !important;
+  background: var(--background-color);
+  box-shadow: var(--report-card-shadow) !important;
+  color: var(--text-color);
+}
+
+#page-content .weight-config-card .card-header {
+  border-bottom: 1px solid var(--gridcolor);
+  border-radius: 10px 10px 0 0;
+  background: var(--kpi-background);
+  color: var(--text-color);
+}
+
+#page-content .weight-config-card .card-header .l1_label {
+  color: var(--text-color) !important;
+}
+
+#page-content .weight-config-card .card-body {
+  background: transparent;
+  color: var(--text-color);
+}
+
+/* Give Settings cards room for slider marks and long parameter labels. */
+#page-content .settings-page .sub_page > div > .row {
+  row-gap: 16px;
+  margin-bottom: 14px;
+}
+
+#page-content .settings-page .weight-config-card {
+  min-width: 0;
+  margin-bottom: 14px !important;
+  overflow: visible;
+}
+
+#page-content .settings-page .weight-config-card .card-header {
+  padding: 9px 16px;
+}
+
+#page-content .settings-page .weight-config-card .card-body {
+  padding: 14px 16px 20px !important;
+  overflow: visible;
+}
+
+#page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) {
+  display: grid;
+  grid-template-columns: minmax(160px, 260px) minmax(0, 1fr);
+  column-gap: 12px;
+  margin-right: 0;
+  margin-left: 0;
+  margin-bottom: 14px !important;
+}
+
+#page-content .settings-page .weight-config-card .card-body > .row:last-child:has(.weight-slider-primary) {
+  margin-bottom: 0 !important;
+}
+
+#page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > .l2_label {
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0;
+  padding: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+#page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > :last-child {
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0;
+  padding: 0;
+}
+
+@media (max-width: 767px) {
+  #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 6px;
+    margin-bottom: 10px !important;
+  }
+
+  #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > .l2_label {
+    margin-bottom: 8px !important;
+  }
+
+  #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > :last-child {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 1200px) and (min-width: 550px) {
+  #page-content .kpi-container {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 550px) {
+  #page-content .page {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  #page-content .kpi-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  #page-content .kpi-card {
+    padding: 10px;
+  }
+
+  #page-content .kpi-card:last-child {
+    grid-column: 1 / -1;
+  }
+
+  #page-content .sub_page > .twelve.columns,
+  #page-content .sub_page > .row > .six.columns,
+  #page-content .sub_page > .row > .twelve.columns {
+    padding: 9px;
+  }
+
+  #page-content .default-table .dash-spreadsheet-inner th,
+  #page-content .default-table .dash-spreadsheet-inner td {
+    padding-right: 7px !important;
+    padding-left: 7px !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  #page-content .default-table .dash-spreadsheet-inner th,
+  #page-content .default-table .dash-spreadsheet-inner th *,
+  #page-content .default-table .dash-spreadsheet-inner td,
+  #page-content .default-table .dash-spreadsheet-inner .dash-cell-value,
+  #page-content .default-table .dash-filter input,
+  #page-content .default-table .dash-filter input::placeholder {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+  }
+
+  #page-content .dash-table-container .current-page-container,
+  #page-content .dash-table-container .current-page-container *,
+  #page-content .dash-table-container .previous-next-container,
+  #page-content .dash-table-container .previous-next-container * {
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+  }
+
+  #page-content .dash-table-container input:not(.dash-filter input) {
+    border-color: var(--gridcolor) !important;
+    background-color: var(--background-color) !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+  }
+}

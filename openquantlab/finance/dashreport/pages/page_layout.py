@@ -175,7 +175,11 @@ class PageLayout:
                     "industry_profit",
                     "industry_strength",
                 ]
-                else "twelve columns"
+                else (
+                    "twelve columns annual-return-card"
+                    if chart_type == "annual_return"
+                    else "twelve columns"
+                )
             ),
         )
 

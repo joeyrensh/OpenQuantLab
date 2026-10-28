@@ -287,7 +287,7 @@ def build_root_card(cfg):
                             step=0.01,
                             value=cfg.get("weights", {}).get(k, 0),
                             marks={0.25: "0.25", 0.5: "0.5", 0.75: "0.75", 1: "1"},
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "top", "always_visible": False},
                             className="mb-0 weight-slider-primary",
                             drag_value=0,
                             disabled=False,
@@ -331,7 +331,7 @@ def build_industry_card(cfg):
                             .get("industry", {})
                             .get(k, 0),
                             marks={0.25: "0.25", 0.5: "0.5", 0.75: "0.75", 1: "1"},
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "top", "always_visible": False},
                             className="mb-0 weight-slider-primary",
                             drag_value=0,
                             disabled=False,
@@ -373,7 +373,7 @@ def build_pnl_card(cfg):
                             step=0.01,
                             value=cfg.get("sub_weights", {}).get("pnl", {}).get(k, 0),
                             marks={0.25: "0.25", 0.5: "0.5", 0.75: "0.75", 1: "1"},
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "top", "always_visible": False},
                             className="mb-0 weight-slider-primary",
                             drag_value=0,
                             disabled=False,
@@ -417,7 +417,7 @@ def build_stability_card(cfg):
                             .get("stability", {})
                             .get(k, 0),
                             marks={0.25: "0.25", 0.5: "0.5", 0.75: "0.75", 1: "1"},
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "top", "always_visible": False},
                             className="mb-0 weight-slider-primary",
                             drag_value=0,
                             disabled=False,
@@ -461,7 +461,7 @@ def build_strategy_card(cfg):
                             .get("strategy", {})
                             .get(k, 0),
                             marks={0.25: "0.25", 0.5: "0.5", 0.75: "0.75", 1: "1"},
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "top", "always_visible": False},
                             className="mb-0 weight-slider-primary",
                             drag_value=0,
                             disabled=False,
@@ -519,7 +519,7 @@ def build_stock_filter_card(cfg):
                                 k, 0.95 if is_quantile else 0
                             ),
                             marks=marks_v,
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "top", "always_visible": False},
                             className="mb-0 weight-slider-primary",
                             drag_value=0,
                             disabled=False,
@@ -581,7 +581,7 @@ def build_chart_display_card(cfg):
                             step=step_v,
                             value=cfg.get("chart_display", {}).get(k, min_v),
                             marks=marks_v,
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "top", "always_visible": False},
                             className="mb-0 weight-slider-primary",
                             drag_value=0,
                             disabled=False,
@@ -859,7 +859,7 @@ def build_strategy_sub_card(category_key: str, key_list: list, cfg: dict) -> dbc
                             step=step_v,
                             value=val,
                             marks=marks_v,
-                            tooltip={"placement": "bottom", "always_visible": True},
+                            tooltip={"placement": "top", "always_visible": False},
                             className="mb-0 weight-slider-primary",
                             drag_value=0,
                             disabled=False,
@@ -1474,12 +1474,121 @@ def create_layout(app: Dash):
         [
             html.Div(sub_page_content, className="sub_page"),
         ],
-        className="page",
+        className="page settings-page",
     )
+
+
+# -------------------------- Slider 当前值标记 --------------------------
+def _format_slider_mark_value(value, step):
+    step_text = f"{float(step):.8f}".rstrip("0").rstrip(".")
+    precision = len(step_text.partition(".")[2]) if "." in step_text else 0
+    precision = min(precision, 4)
+    rounded_value = round(float(value), precision)
+    if precision == 0:
+        return str(int(rounded_value))
+    return f"{rounded_value:.{precision}f}".rstrip("0").rstrip(".")
+
+
+def _marks_with_current_value(value, min_value, max_value, step, base_marks):
+    marks = dict(base_marks or {})
+    if value is None:
+        return marks
+
+    value = float(value)
+    span = max(float(max_value) - float(min_value), 1e-9)
+    positions = sorted(float(position) for position in marks)
+    gaps = [
+        right - left for left, right in zip(positions, positions[1:]) if right > left
+    ]
+    clearance = min(span * 0.14, min(gaps) * 0.45) if gaps else span * 0.12
+
+    # Hide only tick labels that would collide with the current value label.
+    for position in list(marks):
+        if abs(float(position) - value) <= clearance:
+            marks[position] = ""
+
+    precision_text = _format_slider_mark_value(value, step)
+    mark_position = round(value, min(6, max(2, len(precision_text.split(".")[-1]))))
+    marks[mark_position] = {
+        "label": precision_text,
+        "style": {"color": "var(--blue-line-color)", "fontWeight": 600},
+    }
+    return marks
+
+
+def _settings_slider_mark_specs():
+    specs = []
+    common_marks = {0.25: "0.25", 0.5: "0.5", 0.75: "0.75", 1: "1"}
+
+    for prefix, keys in (
+        ("root", ROOT_KEYS),
+        ("ind", IND_KEYS),
+        ("pnl", PNL_KEYS),
+        ("sta", STA_KEYS),
+        ("str", STR_KEYS),
+    ):
+        specs.extend(
+            (f"slider_{prefix}_{key}", 0, 1, 0.01, common_marks) for key in keys
+        )
+
+    for key in STK_KEYS:
+        is_days = key == "collection_days"
+        is_quantile = key == "quantile"
+        min_value = 1 if is_days else (0.8 if is_quantile else 0)
+        max_value = 30 if is_days else (0.99 if is_quantile else 1)
+        step = 1 if is_days else 0.01
+        if is_days:
+            marks = {10: "10", 20: "20", 30: "30"}
+        elif is_quantile:
+            marks = {0.85: "0.85", 0.9: "0.9", 0.95: "0.95", 0.99: "0.99"}
+        else:
+            marks = common_marks
+        specs.append((f"slider_stk_{key}", min_value, max_value, step, marks))
+
+    for key in CHT_KEYS:
+        if key == "kline_limit":
+            min_value, max_value, step, marks = 0, 20, 1, {10: "10", 20: "20"}
+        elif key in ("chart_time_range", "minichart_time_range"):
+            min_value = 10
+            max_value = 200 if key == "chart_time_range" else 120
+            step = 5
+            marks = (
+                {50: "50", 100: "100", 150: "150", 200: "200"}
+                if key == "chart_time_range"
+                else {30: "30", 60: "60", 90: "90", 120: "120"}
+            )
+        elif key == "min_kline_time_range":
+            min_value, max_value, step = 0, 400, 5
+            marks = {100: "100", 200: "200", 300: "300", 400: "400"}
+        else:
+            min_value, max_value, step, marks = 0, 100, 1, {100: "100"}
+        specs.append((f"slider_cht_{key}", min_value, max_value, step, marks))
+
+    for keys in (BT_MACD_KEYS, BT_MA_KEYS, BT_VOL_KEYS, BT_WIN_KEYS, BT_FLOW_KEYS):
+        for key in keys:
+            min_value, max_value, step, marks = get_slider_bounds_and_marks(key)
+            specs.append((f"slider_bt_{key}", min_value, max_value, step, marks))
+
+    return specs
 
 
 # -------------------------- 回调注册主函数 --------------------------
 def register_callbacks(app: Dash):
+    slider_mark_specs = _settings_slider_mark_specs()
+    if slider_mark_specs:
+
+        @app.callback(
+            [Output(slider_id, "marks") for slider_id, *_ in slider_mark_specs],
+            [Input(slider_id, "value") for slider_id, *_ in slider_mark_specs],
+        )
+        def update_slider_mark_labels(*values):
+            return [
+                _marks_with_current_value(value, min_value, max_value, step, marks)
+                for value, (_, min_value, max_value, step, marks) in zip(
+                    values, slider_mark_specs
+                )
+            ]
+
     bt_inputs = (
         [Input(f"slider_bt_{k}", "value") for k in BT_MACD_KEYS]
         + [Input(f"slider_bt_{k}", "value") for k in BT_MA_KEYS]

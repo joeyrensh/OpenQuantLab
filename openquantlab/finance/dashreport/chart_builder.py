@@ -2065,8 +2065,8 @@ class ChartBuilder:
                 "table_font": 16,
                 "header_h": 37,
                 "cell_h": 38,
-                "gap_ratio": 0.05,  # 上下缝隙死死锁定为 3% 画布高度
-                "table_ratio_cap": 0.27,  # Table 占画布比例上限
+                "gap_ratio": 0.05,  # 图表与表格之间保留 5% 高度
+                "table_ratio_cap": 0.62,  # 为表格及窄屏换行预留足够高度
             }
 
         # 2. 中屏 / 笔记本 & iPad 横屏 (768px ~ 1199px) -> 1.1rem 视觉体系
@@ -2078,7 +2078,7 @@ class ChartBuilder:
                 "header_h": 38,
                 "cell_h": 39,
                 "gap_ratio": 0.06,
-                "table_ratio_cap": 0.27,
+                "table_ratio_cap": 0.62,
             }
 
         # 3. 平板竖屏 (550px ~ 767px) -> 1.0rem 视觉体系
@@ -2090,7 +2090,7 @@ class ChartBuilder:
                 "header_h": 28,
                 "cell_h": 29,
                 "gap_ratio": 0.06,
-                "table_ratio_cap": 0.27,
+                "table_ratio_cap": 0.62,
             }
 
         # 4. 小屏 / 手机端 (< 550px) -> 0.9rem 极简体系
@@ -2102,7 +2102,7 @@ class ChartBuilder:
                 "header_h": 21,
                 "cell_h": 22,
                 "gap_ratio": 0.06,
-                "table_ratio_cap": 0.27,
+                "table_ratio_cap": 0.62,
             }
 
     def annual_return(self, page, pnl: pd.Series, theme="light", client_width=1440):
@@ -2126,12 +2126,11 @@ class ChartBuilder:
         cfg = self.theme_config.get(theme, self.theme_config["light"])
         hover_config = self.theme_config.get(theme, self.theme_config["light"])
         text_color = cfg["text-color"]
+        layout_cfg = self._get_responsive_config(client_width)
         scale, base_font = self._get_font_sizes(
             client_width, base_font=16, min_scale=0.65, max_scale=1.05
         )
-        scale, table_font = self._get_font_sizes(
-            client_width, base_font=16, min_scale=0.65, max_scale=1.05
-        )
+        table_font = layout_cfg["table_font"]
         # =========================
         # 3. 收益 / 回撤计算
         # =========================
@@ -2217,7 +2216,7 @@ class ChartBuilder:
             for j in range(len(table_columns))
         ]
         font_weights_by_col = ["normal"] * len(table_columns)
-        font_sizes_by_col = [table_font + 3] * len(table_columns)
+        font_sizes_by_col = [table_font] * len(table_columns)
 
         # 准备表格单元格数据（列优先）
         cell_values = [table_df[col].tolist() for col in table_columns]
@@ -2598,23 +2597,27 @@ class ChartBuilder:
         # CHART_DOMAIN_Y = [0.34, 1.0]
         # TABLE_DOMAIN_Y = [0.0, 0.27]
 
-        # 获取当前屏幕断点的布局尺寸配置
-        layout_cfg = self._get_responsive_config(client_width)
-
         # 计算 Table 绝对像素高度及画布占比
         num_rows = len(cell_values[0]) if cell_values and len(cell_values) > 0 else 0
-        table_pixel_height = (
-            layout_cfg["header_h"] + (layout_cfg["cell_h"] * num_rows) + 15
-        )
+        table_pixel_height = layout_cfg["header_h"] + (layout_cfg["cell_h"] * num_rows)
 
-        # 基于 1.5 比例计算基准画布高度
-        base_canvas_height = (client_width if client_width else 1440) / (
-            1.6 if (client_width or 1440) <= 550 else 2.2
-        )
-        raw_table_ratio = table_pixel_height / base_canvas_height
+        # 依据图表卡片的实际内容宽度和 aspect-ratio 估算画布高度。
+        screen_width = client_width if client_width and client_width > 0 else 1440
+        if screen_width >= 1200:
+            page_width = min(screen_width, 260 * 96 / 25.4)  # .page 的 260mm
+        elif screen_width <= 550:
+            page_width = screen_width * 0.99 - 20  # 手机端 .page 左右内边距
+        else:
+            page_width = screen_width
 
-        # 约束 Table 在画布上的 y 轴分配比例
-        table_y_ratio = min(layout_cfg["table_ratio_cap"], max(0.5, raw_table_ratio))
+        # report-ui.css 的 annual-return 卡片左右各有 14px 内边距。
+        graph_width = max(240, page_width - 28)
+        aspect_ratio = 1.6 if screen_width <= 550 else 2.2
+        base_canvas_height = graph_width / aspect_ratio
+        raw_table_ratio = (table_pixel_height + 2) / base_canvas_height
+
+        # table_pixel_height 已包含边框余量，按实际所需像素分配 domain。
+        table_y_ratio = min(layout_cfg["table_ratio_cap"], max(0.16, raw_table_ratio))
 
         # 无缝垂直 Domain 计算
         TABLE_DOMAIN_Y = [0.0, round(table_y_ratio, 3)]

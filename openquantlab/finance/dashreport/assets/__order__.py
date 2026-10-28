@@ -4,4 +4,5 @@ css = [
     "base2.css",
     "base3.css",
     "styles.css",  # 最后加载
+    "report-ui.css",
 ]

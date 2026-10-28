@@ -1263,7 +1263,7 @@ a:active { color: var(--text-color); text-decoration: underline; }
 }
 
 .weight-slider-primary .rc-slider-mark-text {
-    color: var(--grid-color) !important;
+    color: var(--grid-color);
     font-size : 1rem;
     margin-top: -5px;
     font-weight: 100;    
