@@ -30,7 +30,7 @@
   --blue-line-color: #1E56A0;
 
   /* 字体 */
-  --font-family: "SF Pro Text", "PingFang SC", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* --- 深色主题 --- */
