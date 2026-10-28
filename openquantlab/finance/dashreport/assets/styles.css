@@ -1281,7 +1281,6 @@ a:active { color: var(--text-color); text-decoration: underline; }
 
 .weight-btn-reset {
     border-color:#6c757d;
-    margin-top: 20px;
     font-size: inherit;
     line-height: 38px;
     font-weight: 400;
