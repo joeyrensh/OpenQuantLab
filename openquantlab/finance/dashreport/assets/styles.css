@@ -879,7 +879,7 @@ a:active { color: var(--text-color); text-decoration: underline; }
 .custom-input {
   height: 45px !important;
   line-height: 45px;
-  border-radius: 0 !important;
+  /* border-radius: 0 !important; */
   background: transparent !important;
   color: var(--text-color) !important;
   border: 1px solid var(--gridcolor) !important;
@@ -1076,6 +1076,7 @@ a:active { color: var(--text-color); text-decoration: underline; }
 .custom-date-picker .SingleDatePickerInput {
   border: 1px solid var(--gridcolor);
   background-color: transparent !important;
+  border-radius: 7px;
 }
 
 .custom-date-picker .SingleDatePickerInput .DateInput {
@@ -1247,9 +1248,10 @@ a:active { color: var(--text-color); text-decoration: underline; }
 .weight-slider-primary .rc-slider-handle {
     width:8px;
     height:8px;
-    border: 2px solid var(--gridcolor);
+    border: 1px solid var(--gridcolor);
     background:#fff;
     margin-top:-2px;
+    margin-left:-2px;
     touch-action: pan-y;
 }
 
