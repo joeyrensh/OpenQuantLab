@@ -2995,14 +2995,28 @@ class ChartBuilder:
 
         # 当 close >= open 时取 long 颜色，否则取 short 颜色
         colors = np.where(df["close"] >= df["open"], cfg["long"], cfg["short"])
+        # 安全获取并格式化数值（纯文本格式）
+        total_value = next(
+            (t["total_value"] for t in reversed(trades) if t.get("total_value")), None
+        )
+        pe = next((t["pe"] for t in reversed(trades) if t.get("pe")), None)
+
+        val_str = (
+            f"{total_value:.0f}"
+            if isinstance(total_value, (int, float))
+            else (total_value or "-")
+        )
+        pe_str = f"{pe:.0f}" if isinstance(pe, (int, float)) else (pe or "-")
+        legend_name_volume = f"(Cap: {val_str} | PE: {pe_str})" if name else symbol
+
         fig.add_trace(
             go.Bar(
                 x=df["datetime"],
                 y=df["volume"],
-                name="Volume",
+                name=legend_name_volume,
                 marker=dict(color=colors, line=dict(color=colors, width=0.8 * scale)),
-                opacity=1.0,
                 showlegend=True,
+                opacity=1.0,
                 hovertemplate="Volume: %{y:.2s}<extra></extra>",
             ),
             row=2,
