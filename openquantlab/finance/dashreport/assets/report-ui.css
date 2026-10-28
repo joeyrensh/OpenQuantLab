@@ -133,7 +133,6 @@
   border-collapse: separate !important;
   border-spacing: 0 !important;
   background: transparent !important;
-  color: var(--text-color) !important;
 }
 
 #page-content .default-table .dash-spreadsheet-inner th:not(.dash-filter) {
@@ -357,11 +356,16 @@
   }
 }
 
+#page-content .default-table .dash-spreadsheet-inner th.dash-filter[data-dash-column]:not([data-dash-column="IDX"]) input::placeholder,
+#page-content .default-table .dash-spreadsheet-inner th.dash-filter[data-dash-column]:not([data-dash-column="IDX"]) input::-webkit-input-placeholder {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  opacity: 0 !important;
+}
+
 @media (prefers-color-scheme: dark) {
   #page-content .default-table .dash-spreadsheet-inner th,
   #page-content .default-table .dash-spreadsheet-inner th *,
-  #page-content .default-table .dash-spreadsheet-inner td,
-  #page-content .default-table .dash-spreadsheet-inner .dash-cell-value,
   #page-content .default-table .dash-filter input,
   #page-content .default-table .dash-filter input::placeholder {
     color: #fff !important;
