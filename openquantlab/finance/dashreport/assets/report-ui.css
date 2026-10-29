@@ -255,12 +255,12 @@
   grid-template-areas:
     "title value"
     "slider slider";
-  column-gap: 12px;
+  column-gap: 8px;
   row-gap: 1px;
   align-items: center;
   margin-right: 0;
   margin-left: 0;
-  margin-bottom: 14px !important;
+  margin-bottom: 8px !important;
 }
 
 #page-content .settings-page .weight-config-card .card-body > .row:last-child:has(.weight-slider-primary) {
@@ -297,9 +297,9 @@
 
 @media (max-width: 767px) {
   #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) {
-    column-gap: 8px;
+    column-gap: 4px;
     row-gap: 0;
-    margin-bottom: 8px !important;
+    margin-bottom: 4px !important;
   }
 
   #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > .l2_label {
