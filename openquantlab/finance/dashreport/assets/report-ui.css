@@ -86,6 +86,7 @@
 
 #page-content .sub_page > .twelve.columns {
   margin-top: 14px;
+  margin-bottom: 14px;
 }
 
 #page-content .sub_page > .annual-return-card {
@@ -363,6 +364,10 @@
 
   #page-content .kpi-card:has(.kpi-date) .kpi-value {
     justify-self: center;
+  }
+
+  #page-content .sub_page > .row > .six.columns + .six.columns {
+    margin-top: 14px !important;
   }
 
   #page-content .sub_page > .twelve.columns,
