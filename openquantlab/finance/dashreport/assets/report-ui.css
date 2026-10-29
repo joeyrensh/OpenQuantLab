@@ -108,8 +108,8 @@
 
 #page-content .default-table {
   overflow: visible;
-  border: 1px solid var(--gridcolor);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: var(--background-color);
 }
 
@@ -142,6 +142,37 @@
   background: var(--kpi-background) !important;
   color: var(--text-color) !important;
   vertical-align: middle !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner th.dash-filter {
+  border: 0 !important;
+  border-bottom: 1px solid var(--gridcolor) !important;
+  padding: 2px 5px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner tr:has(th.dash-filter) {
+  height: 28px !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner th.dash-filter input:not([type="radio"]):not([type="checkbox"]) {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 20px !important;
+  padding: 1px 4px !important;
+  font-size: 0.9rem !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--gridcolor) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#page-content .default-table .dash-spreadsheet-inner th.dash-filter input:not([type="radio"]):not([type="checkbox"]):focus {
+  border-bottom: 2px solid var(--blue-line-color) !important;
+  outline: none !important;
 }
 
 #page-content .default-table .dash-spreadsheet-inner td {
