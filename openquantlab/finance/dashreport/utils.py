@@ -765,7 +765,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                         sort_mode="single",
                         filter_options={
                             "placeholder_text": "Search",
-                            "case": "insensitive",
+                            "case": "sensitive",
                         },
                         markdown_options={"html": True, "link_target": "_blank"},
                         fill_width=True,
