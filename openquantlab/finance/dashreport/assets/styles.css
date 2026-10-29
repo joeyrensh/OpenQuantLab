@@ -558,6 +558,7 @@ table.tiny-header tr:first-child { font-size: 8px; }
     position: relative;
     border: medium;
     background-color: transparent;
+    gap: 5px;
 }
 
 .kpi-card.has-divider::after {
@@ -1668,6 +1669,10 @@ input[type="radio"]:checked::before {
   body {
     font-size: 1.05rem;
   }
+
+  .kpi-card {
+      gap: 2px;
+  }  
   
   .kpi-label {
     font-size: 1.05rem;
