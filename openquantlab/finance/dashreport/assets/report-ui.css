@@ -286,12 +286,12 @@
   grid-template-areas:
     "title value"
     "slider slider";
-  column-gap: 8px;
-  row-gap: 1px;
+  column-gap: 2px;
+  /* row-gap: 1px; */
   align-items: center;
   margin-right: 0;
   margin-left: 0;
-  margin-bottom: 8px !important;
+  /* margin-bottom: 2px !important; */
 }
 
 #page-content .settings-page .weight-config-card .card-body > .row:last-child:has(.weight-slider-primary) {
@@ -328,9 +328,9 @@
 
 @media (max-width: 767px) {
   #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) {
-    column-gap: 4px;
+    column-gap: 2px;
     row-gap: 0;
-    margin-bottom: 4px !important;
+    margin-bottom: 2px !important;
   }
 
   #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > .l2_label {
