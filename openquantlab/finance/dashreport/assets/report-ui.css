@@ -370,6 +370,10 @@
   #page-content .sub_page > .twelve.columns,
   #page-content .sub_page > .row > .six.columns,
   #page-content .sub_page > .row > .twelve.columns {
+    padding: 6px 6px 10px 6px;
+  }
+    
+  #page-content .sub_page > .twelve.columns.annual-return-card {
     padding: 6px;
   }
 
