@@ -533,6 +533,14 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
             "STRATEGY CNT",
         ]
     ]
+    # Keep case-insensitive text search at table level, but use case-sensitive
+    # filtering for numeric columns so relational operators compare numbers.
+    for column in columns:
+        if column["type"] == "numeric":
+            column["filter_options"] = {
+                "placeholder_text": "Search",
+                "case": "sensitive",
+            }
     # 遍历 DataFrame 的所有列
     for col in df.columns:
         # 为每一列创建一个新的列，新的列名为原列名加上后缀 "_o"
@@ -765,7 +773,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                         sort_mode="single",
                         filter_options={
                             "placeholder_text": "Search",
-                            "case": "sensitive",
+                            "case": "insensitive",
                         },
                         markdown_options={"html": True, "link_target": "_blank"},
                         fill_width=True,
