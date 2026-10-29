@@ -1,8 +1,58 @@
+from datetime import datetime, time, timedelta
+
 import pandas as pd
 from dash import html, Input, Output, callback, MATCH
 from dash.exceptions import PreventUpdate
 from finance.dashreport.data_loader import ReportDataLoader
+from finance.utility.toolkit import ToolKit
 import numpy as np
+
+
+def _market_data_status(page, data_end_date, now=None):
+    """Return the freshness/session label for the market's latest daily data."""
+    parsed_date = pd.to_datetime(data_end_date, errors="coerce")
+    if pd.isna(parsed_date):
+        return "Pending update"
+    data_date = parsed_date.date()
+
+    now = now or datetime.now()
+    is_us_market = str(page).startswith("us")
+    market_now = now - timedelta(hours=12) if is_us_market else now
+    is_trade_date = (
+        ToolKit.is_us_trade_date if is_us_market else ToolKit.is_cn_trade_date
+    )
+    today = market_now.date()
+    today_key = today.strftime("%Y%m%d")
+
+    def previous_trade_date(before_date):
+        candidate = before_date - timedelta(days=1)
+        for _ in range(370):
+            if is_trade_date(candidate.strftime("%Y%m%d")):
+                return candidate
+            candidate -= timedelta(days=1)
+        return None
+
+    previous_session = previous_trade_date(today)
+    if previous_session is None:
+        return "Pending update"
+
+    if not is_trade_date(today_key):
+        return "Market closed" if data_date >= previous_session else "Pending update"
+
+    if data_date >= today:
+        return "Up to date"
+    if data_date < previous_session:
+        return "Pending update"
+
+    market_time = market_now.time()
+    market_open = time(9, 30)
+    market_close = time(16, 0) if is_us_market else time(15, 0)
+
+    if market_time < market_open:
+        return "Up to date"
+    if market_time < market_close:
+        return "Trading"
+    return "Pending update"
 
 
 class KpiCallback:
@@ -130,7 +180,7 @@ class KpiCallback:
                 (
                     "Date",
                     row_today.get("end_date", "")[-5:],
-                    "Today",
+                    _market_data_status(page, row_today.get("end_date", "")),
                 ),
             ]
 
@@ -141,7 +191,14 @@ class KpiCallback:
             for idx, (label, value, pct) in enumerate(kpis):
                 extra_class = "kpi-date" if label == "Date" else ""
 
-                if pct.startswith("+"):
+                if label == "Date":
+                    if pct == "Up to date":
+                        pct_class = "kpi-pct-up"
+                    elif pct == "Pending update":
+                        pct_class = "kpi-pct-down"
+                    else:
+                        pct_class = "kpi-pct-neutral"
+                elif pct.startswith("+"):
                     pct_class = "kpi-pct-up"
                 elif pct.startswith("-"):
                     pct_class = "kpi-pct-down"
