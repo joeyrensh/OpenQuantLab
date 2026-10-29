@@ -205,7 +205,6 @@
 #page-content .json-preview-box {
   border-color: var(--gridcolor) !important;
   border-radius: 6px;
-  background-color: var(--background-color) !important;
   color: var(--text-color) !important;
 }
 
