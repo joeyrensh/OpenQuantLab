@@ -292,7 +292,13 @@ def build_root_card(cfg):
                             drag_value=0,
                             disabled=False,
                         ),
+                        className="weight-slider-column",
                         width=8,
+                    ),
+                    _weight_current_value(
+                        f"slider_root_{k}",
+                        cfg.get("weights", {}).get(k, 0),
+                        0.01,
                     ),
                 ],
                 className="mb-3 align-items-center",
@@ -336,7 +342,13 @@ def build_industry_card(cfg):
                             drag_value=0,
                             disabled=False,
                         ),
+                        className="weight-slider-column",
                         width=8,
+                    ),
+                    _weight_current_value(
+                        f"slider_ind_{k}",
+                        cfg.get("sub_weights", {}).get("industry", {}).get(k, 0),
+                        0.01,
                     ),
                 ],
                 className="mb-3 align-items-center",
@@ -378,7 +390,13 @@ def build_pnl_card(cfg):
                             drag_value=0,
                             disabled=False,
                         ),
+                        className="weight-slider-column",
                         width=8,
+                    ),
+                    _weight_current_value(
+                        f"slider_pnl_{k}",
+                        cfg.get("sub_weights", {}).get("pnl", {}).get(k, 0),
+                        0.01,
                     ),
                 ],
                 className="mb-3 align-items-center",
@@ -422,7 +440,13 @@ def build_stability_card(cfg):
                             drag_value=0,
                             disabled=False,
                         ),
+                        className="weight-slider-column",
                         width=8,
+                    ),
+                    _weight_current_value(
+                        f"slider_sta_{k}",
+                        cfg.get("sub_weights", {}).get("stability", {}).get(k, 0),
+                        0.01,
                     ),
                 ],
                 className="mb-3 align-items-center",
@@ -466,7 +490,13 @@ def build_strategy_card(cfg):
                             drag_value=0,
                             disabled=False,
                         ),
+                        className="weight-slider-column",
                         width=8,
+                    ),
+                    _weight_current_value(
+                        f"slider_str_{k}",
+                        cfg.get("sub_weights", {}).get("strategy", {}).get(k, 0),
+                        0.01,
                     ),
                 ],
                 className="mb-3 align-items-center",
@@ -524,7 +554,15 @@ def build_stock_filter_card(cfg):
                             drag_value=0,
                             disabled=False,
                         ),
+                        className="weight-slider-column",
                         width=8,
+                    ),
+                    _weight_current_value(
+                        f"slider_stk_{k}",
+                        cfg.get("stock_filter", {}).get(
+                            k, 0.95 if is_quantile else 0
+                        ),
+                        step_v,
                     ),
                 ],
                 className="mb-3 align-items-center",
@@ -586,7 +624,13 @@ def build_chart_display_card(cfg):
                             drag_value=0,
                             disabled=False,
                         ),
+                        className="weight-slider-column",
                         width=8,
+                    ),
+                    _weight_current_value(
+                        f"slider_cht_{k}",
+                        cfg.get("chart_display", {}).get(k, min_v),
+                        step_v,
                     ),
                 ],
                 className="mb-3 align-items-center",
@@ -864,8 +908,10 @@ def build_strategy_sub_card(category_key: str, key_list: list, cfg: dict) -> dbc
                             drag_value=0,
                             disabled=False,
                         ),
+                        className="weight-slider-column",
                         width=8,
                     ),
+                    _weight_current_value(f"slider_bt_{k}", val, step_v),
                 ],
                 className="mb-3 align-items-center",
             )
@@ -1480,6 +1526,8 @@ def create_layout(app: Dash):
 
 # -------------------------- Slider 当前值标记 --------------------------
 def _format_slider_mark_value(value, step):
+    if value is None or value == "":
+        return ""
     step_text = f"{float(step):.8f}".rstrip("0").rstrip(".")
     precision = len(step_text.partition(".")[2]) if "." in step_text else 0
     precision = min(precision, 4)
@@ -1489,31 +1537,12 @@ def _format_slider_mark_value(value, step):
     return f"{rounded_value:.{precision}f}".rstrip("0").rstrip(".")
 
 
-def _marks_with_current_value(value, min_value, max_value, step, base_marks):
-    marks = dict(base_marks or {})
-    if value is None:
-        return marks
-
-    value = float(value)
-    span = max(float(max_value) - float(min_value), 1e-9)
-    positions = sorted(float(position) for position in marks)
-    gaps = [
-        right - left for left, right in zip(positions, positions[1:]) if right > left
-    ]
-    clearance = min(span * 0.14, min(gaps) * 0.45) if gaps else span * 0.12
-
-    # Hide only tick labels that would collide with the current value label.
-    for position in list(marks):
-        if abs(float(position) - value) <= clearance:
-            marks[position] = ""
-
-    precision_text = _format_slider_mark_value(value, step)
-    mark_position = round(value, min(6, max(2, len(precision_text.split(".")[-1]))))
-    marks[mark_position] = {
-        "label": precision_text,
-        "style": {"color": "var(--blue-line-color)", "fontWeight": 600},
-    }
-    return marks
+def _weight_current_value(slider_id, value, step):
+    return html.Span(
+        _format_slider_mark_value(value, step),
+        id=f"{slider_id}_value",
+        className="weight-current-value",
+    )
 
 
 def _settings_slider_mark_specs():
@@ -1578,15 +1607,16 @@ def register_callbacks(app: Dash):
     if slider_mark_specs:
 
         @app.callback(
-            [Output(slider_id, "marks") for slider_id, *_ in slider_mark_specs],
+            [
+                Output(f"{slider_id}_value", "children")
+                for slider_id, *_ in slider_mark_specs
+            ],
             [Input(slider_id, "value") for slider_id, *_ in slider_mark_specs],
         )
-        def update_slider_mark_labels(*values):
+        def update_slider_current_values(*values):
             return [
-                _marks_with_current_value(value, min_value, max_value, step, marks)
-                for value, (_, min_value, max_value, step, marks) in zip(
-                    values, slider_mark_specs
-                )
+                _format_slider_mark_value(value, step)
+                for value, (_, _, _, step, _) in zip(values, slider_mark_specs)
             ]
 
     bt_inputs = (
