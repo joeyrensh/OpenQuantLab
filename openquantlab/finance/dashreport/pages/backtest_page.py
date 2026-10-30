@@ -534,7 +534,7 @@ class BacktestPage:
                 result = task_state.get("result")
                 if result:
                     returns = result.get("returns", 0)
-                    status_text = f"Backtest completed | Return: {returns:+.2f}% | Cash: {result['c']:,.0f} | Total Value: {result['tv']:,.0f}"
+                    status_text = f"Backtest completed | Return: {returns:+.2f}% | Cash: {result['c']:,.0f} | Total: {result['tv']:,.0f}"
                     # 任务已完成，重置状态为 idle（便于下次提交）
                     task_state["status"] = "idle"
                     return (
@@ -701,7 +701,7 @@ class BacktestPage:
                 result = task_state.get("result")
                 if result:
                     returns = result.get("returns", 0)
-                    status_text = f"Backtest completed | Return: {returns:+.2f}% | Cash: {result['c']:,.0f} | Total Value: {result['tv']:,.0f}"
+                    status_text = f"Backtest completed | Return: {returns:+.2f}% | Cash: {result['c']:,.0f} | Total: {result['tv']:,.0f}"
                     BACKTEST_LOCK.release()
                     task_state["status"] = "idle"
                     return (

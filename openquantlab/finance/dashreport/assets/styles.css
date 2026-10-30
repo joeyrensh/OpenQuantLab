@@ -1781,6 +1781,7 @@ input[type="radio"]:checked::before {
   .background-header::before {
     width: 10%;
     margin-top: 0;
+    margin-left: 2px;
   }
   
   .company-logo {
@@ -1842,7 +1843,7 @@ input[type="radio"]:checked::before {
   }
   
   .bubble-text {
-    margin-left: 5px;
+    margin-left: 12px;
     margin-top: 4px;
     font-size: 1.4rem;
     padding: 0;
