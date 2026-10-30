@@ -4012,7 +4012,7 @@ class ChartBuilder:
             go.Scatter(
                 x=df["date"],
                 y=df["s_pnl"],
-                name="Daily PnL",
+                name="Daily Pnl",
                 mode="lines+markers",
                 cliponaxis=False,
                 line=dict(color=cfg.get("cumret-line-color"), width=1.5),

@@ -231,7 +231,6 @@
   min-width: 0 !important;
   height: 20px !important;
   padding: 1px 4px !important;
-  font-size: 0.9rem !important;
   border: 0 !important;
   border-bottom: 1px solid var(--gridcolor) !important;
   border-radius: 0 !important;
@@ -388,7 +387,6 @@
   grid-area: value;
   justify-self: end;
   color: var(--blue-line-color);
-  font-size: 0.95em;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -459,7 +457,6 @@
     grid-row: 1;
     justify-self: end;
     align-self: center;
-    font-size: 0.9em;
     opacity: 0.62;
   }
 
