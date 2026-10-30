@@ -40,6 +40,7 @@
 #page-content .kpi-container {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
   gap: 10px;
   overflow: visible;
   border: 0;
@@ -69,6 +70,65 @@
 #page-content .kpi-value {
   margin-bottom: 2px;
   color: var(--text-color);
+}
+
+/* Keep metric labels and values on the left, with the ratio on the right. */
+#page-content .kpi-card:not(:has(.kpi-date)) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 10px;
+}
+
+#page-content .kpi-card:not(:has(.kpi-date)) .kpi-label {
+  grid-column: 1;
+  grid-row: 1;
+  margin-bottom: 0;
+}
+
+#page-content .kpi-card:not(:has(.kpi-date)) .kpi-value {
+  grid-column: 1;
+  grid-row: 2;
+  margin-bottom: 0;
+}
+
+#page-content .kpi-card:not(:has(.kpi-date)) .kpi-pct {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  align-self: center;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Keep the date/status card compact and aligned with the metric cards. */
+#page-content .kpi-card:has(.kpi-date) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.25fr);
+  align-items: center;
+  column-gap: 8px;
+  min-height: 56px;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+#page-content .kpi-card:has(.kpi-date) .kpi-label {
+  justify-self: start;
+  margin: 0;
+}
+
+#page-content .kpi-card:has(.kpi-date) .kpi-value {
+  justify-self: center;
+  margin: 0;
+}
+
+#page-content .kpi-card:has(.kpi-date) .kpi-pct {
+  justify-self: stretch;
+  margin: 0;
+  text-align: right;
+  white-space: normal;
 }
 
 /* Add card surfaces without changing rows, widths, chart aspect ratios or heights. */
@@ -352,7 +412,8 @@
 
   #page-content .kpi-container {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    column-gap: 8px;
+    row-gap: 10px;
   }
 
   #page-content .kpi-card {
@@ -363,34 +424,9 @@
     grid-column: 1 / -1;
   }
 
-  #page-content .kpi-card:has(.kpi-date) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: 12px;
-    min-height: 56px;
-    padding: 8px 12px;
-    white-space: nowrap;
-  }
-
-  #page-content .kpi-card:has(.kpi-date) .kpi-label,
-  #page-content .kpi-card:has(.kpi-date) .kpi-value,
   #page-content .kpi-card:has(.kpi-date) .kpi-pct {
-    margin: 0;
-  }
-
-  #page-content .kpi-card:has(.kpi-date) .kpi-pct {
-    justify-self: end;
     font-size: 0.9em;
     opacity: 0.62;
-  }
-
-  #page-content .kpi-card:has(.kpi-date) .kpi-label {
-    justify-self: start;
-  }
-
-  #page-content .kpi-card:has(.kpi-date) .kpi-value {
-    justify-self: center;
   }
 
   #page-content .sub_page > .row > .six.columns + .six.columns {
