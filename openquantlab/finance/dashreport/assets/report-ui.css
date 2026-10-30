@@ -131,6 +131,39 @@
   white-space: normal;
 }
 
+@media (min-width: 1201px) {
+  #page-content .kpi-card:has(.kpi-date) {
+    grid-template-columns: minmax(max-content, 1fr) auto;
+    grid-template-rows: auto auto;
+    column-gap: 4px;
+    row-gap: 2px;
+    padding-right: 18px;
+    white-space: normal;
+  }
+
+  #page-content .kpi-card:has(.kpi-date) .kpi-label {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
+  }
+
+  #page-content .kpi-card:has(.kpi-date) .kpi-value {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+    white-space: nowrap;
+  }
+
+  #page-content .kpi-card:has(.kpi-date) .kpi-pct {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    justify-self: end;
+    align-self: center;
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
 /* Add card surfaces without changing rows, widths, chart aspect ratios or heights. */
 #page-content .sub_page > .twelve.columns,
 #page-content .sub_page > .row > .six.columns,
