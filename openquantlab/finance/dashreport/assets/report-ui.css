@@ -275,7 +275,7 @@
 }
 
 #page-content .settings-page .weight-config-card .card-body {
-  padding: 14px 16px 20px !important;
+  padding: 8px 16px 8px !important;
   overflow: visible;
 }
 
@@ -412,7 +412,7 @@
   }
 
   #page-content .settings-page .weight-config-card .card-body {
-    padding: 10px 10px 12px !important;
+    padding: 5px 10px 5px !important;
   }
 
   #page-content .default-table .dash-spreadsheet-inner th,
