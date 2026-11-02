@@ -1449,6 +1449,7 @@ class BacktestPage:
                 dcc.Store(id="store_selected_cell_info", data=None),
                 dcc.Store(id="ai_is_loading", data=False),
                 dcc.Store(id="ai_summary_done", data=False),
+                dcc.Store(id="ai_summary_generated_value", data=""),
                 dcc.Interval(
                     id="ai_polling_timer",
                     interval=2000,
@@ -1467,15 +1468,12 @@ class BacktestPage:
                         "lineHeight": "1.6",
                     },
                     children=[
-                        html.Div(
-                            id="ai_summary_box",  # Callback 正常绑定渲染文本
-                            style={
-                                "width": "100%",
-                                "height": "auto",
-                                "display": "block",  # 块级流，天然向上对齐
-                                "position": "relative",
-                            },
-                            children="Select a stock from the Name column and click [AI Analysis] to view the summary.",
+                        dcc.Textarea(
+                            id="ai_summary_box",
+                            value="",
+                            placeholder="Select a stock name to view its AI summary. Type a custom prompt to override it.",
+                            rows=2,
+                            className="ai-summary-editor",
                         ),
                     ],
                 ),

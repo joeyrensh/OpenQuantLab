@@ -1386,6 +1386,27 @@ input[type="radio"]:checked::before {
     margin-bottom: 0px;
 }
 
+#page-content .ai-summary-editor {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 50px;
+    field-sizing: content;
+    overflow-y: hidden;
+    box-sizing: border-box;
+    resize: none;
+    padding: 0 5px;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent;
+    color: var(--text-color) !important;
+    font-family: var(--font-family);
+    font-size: 1.3rem;
+    line-height: 1.6;
+    margin-bottom: 0;
+    outline: none;
+}
+
 .ai-analysis-btn {
     position: absolute !important;
     bottom: 8px !important;
@@ -1934,6 +1955,10 @@ input[type="radio"]:checked::before {
   }
   
   .ai-analysis-panel {
+    font-size: 1.05rem;
+  }
+
+  #page-content .ai-summary-editor {
     font-size: 1.05rem;
   }
 

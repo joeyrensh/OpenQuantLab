@@ -392,7 +392,7 @@ class TableCallback:
                     "prompt_summary": summarize_prompt(prompt),
                 }
 
-            def async_openai_worker(sym, nm, key, request_prompt):
+            def async_openai_worker(sym, nm, key, request_prompt, include_stock_header):
                 load_dotenv()
                 try:
                     # 设定 20 秒超时
@@ -421,11 +421,16 @@ class TableCallback:
                         http_client.close()
 
                 # 计算完毕，使用线程锁安全地更新结果
+                response_text = (
+                    f"Symbol: {sym} Name: {nm.strip('88+')} : {ai_result}"
+                    if include_stock_header
+                    else ai_result
+                )
                 with cache_lock:
                     AI_TASK_CACHE[key] = {
                         "status": "success",
                         "result": (
-                            f"Symbol: {sym} Name: {nm.strip('88+')} Core Insight: {ai_result}\n\n"
+                            f"{response_text}\n\n"
                             f"Submitted Prompt (summary):\n{summarize_prompt(request_prompt)}"
                         ),
                         "prompt_summary": summarize_prompt(request_prompt),
@@ -434,7 +439,7 @@ class TableCallback:
             # 异步启动
             thread = threading.Thread(
                 target=async_openai_worker,
-                args=(symbol, name, task_key, prompt),
+                args=(symbol, name, task_key, prompt, not is_manual_request),
             )
             thread.daemon = True
             thread.start()
