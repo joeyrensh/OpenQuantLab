@@ -317,7 +317,8 @@ class TableCallback:
                     http_client = httpx.Client(timeout=120)
                     client = OpenAI(
                         api_key=os.getenv("API_KEY"),
-                        base_url="https://ws-uaeaan6mql1ieioa.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+                        # base_url="https://ws-uaeaan6mql1ieioa.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+                        base_url="https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1",
                         http_client=http_client,
                     )
                     prompt = (
