@@ -26,6 +26,24 @@ AI_TASK_CACHE = {}
 cache_lock = threading.Lock()
 
 
+def summarize_prompt(prompt, max_length=180):
+    """Return a compact first-sentence preview of the prompt shown to the user."""
+    prompt = (prompt or "").strip()
+    if not prompt:
+        return ""
+
+    sentence_end = re.search(r"[。.!?！？]", prompt)
+    if sentence_end:
+        prompt = prompt[: sentence_end.end()]
+    else:
+        prompt = prompt.splitlines()[0]
+
+    prompt = re.sub(r"\s+", " ", prompt).strip()
+    if len(prompt) > max_length:
+        prompt = prompt[: max_length - 1].rstrip() + "…"
+    return prompt
+
+
 class TableCallback:
     """
     通用 Table 回调管理器
@@ -289,28 +307,92 @@ class TableCallback:
             return show_wrapper, show_btn, ai_summary_done
 
         @callback(
-            Output("ai_summary_box", "children", allow_duplicate=True),
+            Output("global_btn_ai_summary", "style", allow_duplicate=True),
+            Input("ai_summary_box", "value"),
+            Input("ai_summary_generated_value", "data"),
+            Input("ai_summary_done", "data"),
+            Input("ai_is_loading", "data"),
+            State("store_selected_cell_info", "data"),
+            prevent_initial_call=True,
+        )
+        def show_ai_button_for_edited_prompt(
+            current_text, generated_text, ai_summary_done, is_loading, cell_info
+        ):
+            hide_btn = {"display": "none"}
+            show_btn = {"display": "inline-block", "cursor": "pointer"}
+
+            if session.get("role") != "admin" or not cell_info or is_loading:
+                return hide_btn
+
+            # The stored value is the last server-written text, so the AI response itself
+            # does not count as a user edit.
+            has_edited_content = (current_text or "").strip() != (
+                generated_text or ""
+            ).strip()
+            if ai_summary_done and has_edited_content:
+                return show_btn
+            if ai_summary_done:
+                return hide_btn
+
+            return no_update
+
+        @callback(
+            Output("ai_summary_box", "value", allow_duplicate=True),
             Output("ai_summary_loading_trigger", "children", allow_duplicate=True),
             Output("ai_is_loading", "data", allow_duplicate=True),
             Output("ai_polling_timer", "n_intervals"),
             Output("ai_polling_timer", "disabled", allow_duplicate=True),
+            Output("ai_summary_generated_value", "data", allow_duplicate=True),
             Input("global_btn_ai_summary", "n_clicks"),
             State("store_selected_cell_info", "data"),
+            State("ai_summary_box", "value"),
+            State("ai_summary_generated_value", "data"),
+            State("ai_is_loading", "data"),
             prevent_initial_call=True,
         )
-        def start_ai(n_clicks, cell_info):
-            if not n_clicks or not cell_info:
-                return "No valid cell selected", None, False, 0, True
+        def start_ai(auto_clicks, cell_info, current_text, generated_text, is_loading):
+            triggered_id = ctx.triggered_id
+
+            if is_loading:
+                return no_update, no_update, no_update, no_update, no_update, no_update
+            if not cell_info:
+                message = "No valid cell selected"
+                return message, None, False, 0, True, message
+
+            if triggered_id != "global_btn_ai_summary" or not auto_clicks:
+                return no_update, no_update, no_update, no_update, no_update, no_update
+
+            edited_text = (current_text or "").strip()
+            last_generated_text = (generated_text or "").strip()
+            is_manual_request = bool(edited_text and edited_text != last_generated_text)
 
             symbol = cell_info.get("symbol", "")
             name = cell_info.get("name", "")
             task_key = f"{symbol}"
 
+            if is_manual_request:
+                prompt = edited_text
+            else:
+                prompt = (
+                    f"总结【{symbol}】最新资讯，200字内单段纯文本，禁标题/序号/前缀/综上所述/市场名称(如A股/美股)。\n"
+                    f"包含字段：\n"
+                    f"1.财报：营收/利润增幅、自由现金流、动态PE/PB及日期、PE/PB历史百分位；\n"
+                    f"2.业务与行业竞争；\n"
+                    f"3.最新利好利空；\n"
+                    f"4.大行评级；\n"
+                    f"5.指数成分：仅列出所属主流指数名称(若无则填“无”)。\n"
+                    f"格式：数字用阿拉伯，日期用MM-DD或YYYY-MM-DD，价格留2位小数，比例用%。"
+                )
+
             # 使用线程锁安全地写入初始化状态
             with cache_lock:
-                AI_TASK_CACHE[task_key] = {"status": "loading", "result": None}
+                AI_TASK_CACHE[task_key] = {
+                    "status": "loading",
+                    "result": None,
+                    "prompt_summary": summarize_prompt(prompt),
+                }
 
-            def async_openai_worker(sym, nm, key):
+            def async_openai_worker(sym, nm, key, request_prompt):
                 load_dotenv()
                 try:
                     # 设定 20 秒超时
@@ -321,20 +403,10 @@ class TableCallback:
                         base_url="https://token-plan.maas.qianwenaiapi.com/compatible-mode/v1",
                         http_client=http_client,
                     )
-                    prompt = (
-                        f"总结【{sym}】最新资讯，200字内单段纯文本，禁标题/序号/前缀/综上所述/市场名称(如A股/美股)。\n"
-                        f"包含字段：\n"
-                        f"1.财报：营收/利润增幅、自由现金流、动态PE/PB及日期、PE/PB历史百分位；\n"
-                        f"2.业务与行业竞争；\n"
-                        f"3.最新利好利空；\n"
-                        f"4.大行评级；\n"
-                        f"5.指数成分：仅列出所属主流指数名称(若无则填“无”)。\n"
-                        f"格式：数字用阿拉伯，日期用MM-DD或YYYY-MM-DD，价格留2位小数，比例用%。"
-                    )
                     response = client.responses.create(
                         model="qwen3.7-max",
                         # model="qwen3.7-plus",
-                        input=prompt,
+                        input=request_prompt,
                         tools=[{"type": "web_search"}, {"type": "web_extractor"}],
                         max_output_tokens=300,
                         extra_body={"enable_thinking": True},
@@ -352,31 +424,38 @@ class TableCallback:
                 with cache_lock:
                     AI_TASK_CACHE[key] = {
                         "status": "success",
-                        "result": f"Symbol: {sym} Name: {nm.strip('88+')} Core Insight: {ai_result}",
+                        "result": (
+                            f"Symbol: {sym} Name: {nm.strip('88+')} Core Insight: {ai_result}\n\n"
+                            f"Submitted Prompt (summary):\n{summarize_prompt(request_prompt)}"
+                        ),
+                        "prompt_summary": summarize_prompt(request_prompt),
                     }
 
             # 异步启动
             thread = threading.Thread(
-                target=async_openai_worker, args=(symbol, name, task_key)
+                target=async_openai_worker,
+                args=(symbol, name, task_key, prompt),
             )
             thread.daemon = True
             thread.start()
 
-            return "Performing analysis, please wait...", None, True, 0, False
+            message = "Performing analysis, please wait..."
+            return message, None, True, 0, False, message
 
         @callback(
-            Output("ai_summary_box", "children", allow_duplicate=True),
+            Output("ai_summary_box", "value", allow_duplicate=True),
             Output("ai_summary_loading_trigger", "children", allow_duplicate=True),
             Output("ai_is_loading", "data", allow_duplicate=True),
             Output("ai_polling_timer", "disabled", allow_duplicate=True),
             Output("ai_summary_done", "data", allow_duplicate=True),
+            Output("ai_summary_generated_value", "data", allow_duplicate=True),
             Input("ai_polling_timer", "n_intervals"),
             State("store_selected_cell_info", "data"),
             prevent_initial_call=True,
         )
         def poll_ai_status(n_intervals, cell_info):
             if not cell_info or not ctx.triggered_id:
-                return no_update, no_update, no_update, no_update, no_update
+                return no_update, no_update, no_update, no_update, no_update, no_update
 
             task_key = f"{cell_info.get('symbol', '')}"
 
@@ -385,15 +464,21 @@ class TableCallback:
 
             if not task_data or task_data.get("status") == "loading":
                 if n_intervals > 120:  # 超时控制
+                    timeout_text = (
+                        "⚠️ Analysis timed out; please check and try again.\n\n"
+                        f"Submitted Prompt (summary):\n"
+                        f"{(task_data or {}).get('prompt_summary', '')}"
+                    )
                     return (
-                        "⚠️ Analysis timed out; please check and try again.",
+                        timeout_text,
                         None,
                         False,
                         True,
                         False,
+                        timeout_text,
                     )
 
-                return no_update, no_update, no_update, no_update, no_update
+                return no_update, no_update, no_update, no_update, no_update, no_update
 
             if task_data.get("status") == "success":
                 final_text = task_data.get("result", "No valid content obtained")
@@ -401,9 +486,9 @@ class TableCallback:
                 with cache_lock:
                     AI_TASK_CACHE.pop(task_key, None)
 
-                return final_text, None, False, True, True
+                return final_text, None, False, True, True, final_text
 
-            return no_update, no_update, no_update, no_update, no_update
+            return no_update, no_update, no_update, no_update, no_update, no_update
 
         @callback(
             Output({"type": "auto-table-count", "page": ALL, "table": ALL}, "children"),

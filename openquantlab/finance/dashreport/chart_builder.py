@@ -2960,8 +2960,12 @@ class ChartBuilder:
             else []
         )
 
-        # K线
-        df["pct_change"] = (df["close"] - df["open"]) / df["open"]
+        # K线 hover 涨跌幅：第一根 bar 沿用开盘到收盘；后续 bar 按昨收至今收计算，包含跳空。
+        intraday_pct = (df["close"] - df["open"]) / df["open"].replace(0, np.nan)
+        prev_close = df["close"].shift(1)
+        has_prev_close = prev_close.notna() & prev_close.ne(0)
+        daily_pct = (df["close"] - prev_close) / prev_close.where(has_prev_close)
+        df["pct_change"] = daily_pct.where(has_prev_close, intraday_pct)
         fig.add_trace(
             go.Candlestick(
                 x=df["datetime"],

@@ -339,26 +339,24 @@ class PageLayout:
                         ),
                     ],
                 ),
-                # ─── 2. 按钮：绝对定位跟随右下角 ───
                 html.Button(
                     "AI Analysis",
                     id="global_btn_ai_summary",
+                    type="button",
                     className="ai-analysis-btn",
-                    style={
-                        "display": "none",
-                        "cursor": "pointer",
-                    },
+                    style={"display": "none", "cursor": "pointer"},
                 ),
                 dcc.Store(id="store_selected_cell_info", data=None),
                 dcc.Store(id="ai_is_loading", data=False),
                 dcc.Store(id="ai_summary_done", data=False),
+                dcc.Store(id="ai_summary_generated_value", data=""),
                 dcc.Interval(
                     id="ai_polling_timer",
                     interval=2000,
                     n_intervals=0,
                     disabled=True,  # 默认静默
                 ),
-                # ─── 3. 纯净文本框外层：普通文档流，天然向上对齐 ───
+                # ─── 2. 紧凑文本框：既显示回复，也允许输入自定义 prompt ───
                 html.Div(
                     id="ai_summary_container",
                     className="ai-analysis-panel",
@@ -370,15 +368,30 @@ class PageLayout:
                         "lineHeight": "1.6",
                     },
                     children=[
-                        html.Div(
+                        dcc.Textarea(
                             id="ai_summary_box",
+                            value="",
+                            placeholder="Select a stock name to view its AI summary. Type a custom prompt to override it.",
+                            rows=2,
                             style={
                                 "width": "100%",
                                 "height": "auto",
-                                "display": "block",
-                                "position": "relative",
+                                "minHeight": "50px",
+                                "fieldSizing": "content",
+                                "overflowY": "hidden",
+                                "boxSizing": "border-box",
+                                "resize": "none",
+                                "padding": "0 5px",
+                                "border": "none",
+                                "borderRadius": "0",
+                                "backgroundColor": "transparent",
+                                "color": "var(--text-color)",
+                                "fontFamily": "var(--font-family)",
+                                "fontSize": "1.3rem",
+                                "lineHeight": "1.6",
+                                "marginBottom": "0",
+                                "outline": "none",
                             },
-                            children="Select a stock from the Name column and click [AI Analysis] to view the summary.",
                         ),
                     ],
                 ),

@@ -1391,26 +1391,16 @@ input[type="radio"]:checked::before {
     bottom: 8px !important;
     right: 8px !important;
     top: auto !important;         
-    height: 30px !important;
+    height: 38px !important;
     margin-top: 0 !important;     
     z-index: 20 !important;
-    background: var(--kpi-background) !important;
-    color: var(--text-color) !important;
-    border-radius: 0 !important;
-    border: 0.1px solid var(--gridcolor) !important;
-    padding: 0 5px !important;
+    padding: 0 14px !important;
     font-size: 1.3rem;
-    transition: background 0.2s;
-    line-height: 30px;
+    line-height: 38px;
     font-family: var(--font-family) !important;
     font-weight: 400;
-    text-transform: capitalize;
-}
-
-@media (hover: hover) {
-    .ai-analysis-btn:hover {
-        background-color: transparent !important;
-    }
+    letter-spacing: normal;
+    text-transform: none;
 }
 
 
@@ -1936,11 +1926,11 @@ input[type="radio"]:checked::before {
 
   .ai-analysis-btn {
     font-size: 1.05rem;
-    padding: 8px 4px !important;
-    line-height: 8px;
+    padding: 0 10px !important;
+    line-height: 30px;
     bottom: 4px !important;
     right: 4px !important;
-    height: 25px !important;
+    height: 30px !important;
   }
   
   .ai-analysis-panel {
