@@ -263,7 +263,35 @@ class TableCallback:
                         editor.style.height = "auto";
                         editor.style.height = Math.max(editor.scrollHeight, 50) + "px";
                     };
+                }
 
+                const editor = document.getElementById("ai_summary_box");
+                if (!editor) return window.dash_clientside.no_update;
+
+                if (window.ResizeObserver) {
+                    if (!window._aiSummaryResizeObserver) {
+                        window._aiSummaryResizeObserver = new ResizeObserver(function(entries) {
+                            const width = entries[0].contentRect.width;
+                            const lastWidth = window._aiSummaryEditorWidth;
+                            window._aiSummaryEditorWidth = width;
+
+                            // Ignore height-only changes caused by this resize operation.
+                            if (lastWidth === undefined || Math.abs(width - lastWidth) > 0.5) {
+                                scheduleResize();
+                            }
+                        });
+                    }
+
+                    if (window._aiSummaryObservedEditor !== editor) {
+                        window._aiSummaryResizeObserver.disconnect();
+                        window._aiSummaryResizeObserver.observe(editor);
+                        window._aiSummaryObservedEditor = editor;
+                        window._aiSummaryEditorWidth = editor.getBoundingClientRect().width;
+                    }
+                }
+
+                if (!window._aiSummaryResizeBound) {
+                    window._aiSummaryResizeBound = true;
                     window.addEventListener("resize", scheduleResize);
                     if (window.visualViewport) {
                         window.visualViewport.addEventListener("resize", scheduleResize);
