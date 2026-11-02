@@ -246,6 +246,39 @@ class TableCallback:
 
         [register_table_ai_callback(app, t) for t in ["detail", "trade"]]
 
+        app.clientside_callback(
+            """
+            function(value) {
+                function scheduleResize() {
+                    window.requestAnimationFrame(function() {
+                        window.requestAnimationFrame(window._resizeAiSummaryEditor);
+                    });
+                }
+
+                if (!window._resizeAiSummaryEditor) {
+                    window._resizeAiSummaryEditor = function() {
+                        const editor = document.getElementById("ai_summary_box");
+                        if (!editor) return;
+
+                        editor.style.height = "auto";
+                        editor.style.height = Math.max(editor.scrollHeight, 50) + "px";
+                    };
+
+                    window.addEventListener("resize", scheduleResize);
+                    if (window.visualViewport) {
+                        window.visualViewport.addEventListener("resize", scheduleResize);
+                    }
+                }
+
+                scheduleResize();
+                return window.dash_clientside.no_update;
+            }
+            """,
+            Output("ai_summary_box", "style"),
+            Input("ai_summary_box", "value"),
+            prevent_initial_call=True,
+        )
+
         @callback(
             Output("ai_summary_wrapper", "style"),
             Output("global_btn_ai_summary", "style"),  # 控制 AI 按钮显隐

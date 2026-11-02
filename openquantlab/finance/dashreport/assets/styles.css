@@ -1391,8 +1391,7 @@ input[type="radio"]:checked::before {
     width: 100%;
     height: auto;
     min-height: 50px;
-    field-sizing: content;
-    overflow-y: hidden;
+    overflow-y: auto;
     box-sizing: border-box;
     resize: none;
     padding: 0 5px;
