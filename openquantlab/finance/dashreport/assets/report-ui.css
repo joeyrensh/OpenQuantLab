@@ -486,11 +486,11 @@
     padding: 5px 10px 10px !important;
   }
 
-  #page-content .default-table .dash-spreadsheet-inner th,
+  /* #page-content .default-table .dash-spreadsheet-inner th,
   #page-content .default-table .dash-spreadsheet-inner td {
     padding-right: 7px !important;
     padding-left: 7px !important;
-  }
+  } */
 }
 
 #page-content .default-table .dash-spreadsheet-inner th.dash-filter[data-dash-column]:not([data-dash-column="IDX"]) input::placeholder,
