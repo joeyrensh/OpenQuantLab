@@ -1085,10 +1085,11 @@ a:active { color: var(--text-color); text-decoration: underline; }
 
 /* 2. 弹出层基础设置与无损缩放 */
 .custom-date-picker .SingleDatePicker_picker {
-  background: transparent !important;
+  background: var(--background-color) !important;
   z-index: 10000 !important;
-  transform: scale(0.7) translateX(-80px) !important;
+  transform: scale(0.7) translateX(-110px) !important;
   transform-origin: top left !important;
+  border: 1px solid var(--gridcolor) !important;
 }
 
 .custom-date-picker .SingleDatePicker_picker * {
