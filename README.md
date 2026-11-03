@@ -8,6 +8,7 @@
 [![GitHub forks](https://img.shields.io/github/forks/joeyrensh/pub_finance?style=flat-square)](https://github.com/joeyrensh/pub_finance/forks)
 [![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![Dash](https://img.shields.io/badge/UI-Plotly%20Dash-119DFF?style=flat-square&logo=plotly&logoColor=white)](https://dash.plotly.com/)
+[![Release downloads](https://img.shields.io/github/downloads/joeyrensh/pub_finance/total?style=flat-square)](https://github.com/joeyrensh/pub_finance/releases)
 
 OpenQuantLab brings market-data workflows, Backtrader strategy runs, and interactive Dash reports into one Python project. Explore A-share and US equity data, review strategy performance, and inspect signals in charts and tables.
 
