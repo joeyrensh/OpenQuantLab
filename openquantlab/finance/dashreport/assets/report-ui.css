@@ -493,8 +493,8 @@
   } */
 }
 
-#page-content .default-table .dash-spreadsheet-inner th.dash-filter[data-dash-column]:not([data-dash-column="IDX"]) input::placeholder,
-#page-content .default-table .dash-spreadsheet-inner th.dash-filter[data-dash-column]:not([data-dash-column="IDX"]) input::-webkit-input-placeholder {
+#page-content .default-table .dash-spreadsheet-inner th.dash-filter[data-dash-column] input::placeholder,
+#page-content .default-table .dash-spreadsheet-inner th.dash-filter[data-dash-column] input::-webkit-input-placeholder {
   color: transparent !important;
   -webkit-text-fill-color: transparent !important;
   opacity: 0 !important;
