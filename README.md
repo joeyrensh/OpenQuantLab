@@ -1,346 +1,190 @@
 # OpenQuantLab
 
-> 🌟 Free & Open-Source Quantitative Analysis Framework | Supporting A-Shares & US Stocks | Strategy Backtesting + Dynamic Visual Analytics
+**An open-source quantitative research and portfolio analytics toolkit for China A-shares and US equities.**
 
-[![GitHub Stars](https://img.shields.io/github/stars/joeyrensh/openquantlab?style=flat-square)](https://github.com/joeyrensh/openquantlab)
-[![Package Size](https://img.shields.io/github/languages/code-size/joeyrensh/openquantlab)](https://github.com/joeyrensh/openquantlab)
-[![License](https://img.shields.io/github/license/joeyrensh/openquantlab?color=blue)](https://github.com/joeyrensh/openquantlab)
+[简体中文](#简体中文) · [Features](#features) · [Screenshots](#screenshots) · [Quick start](#quick-start)
 
-## 📌 Introduction
-OpenQuantLab is a **full-lifecycle, open-source quantitative analysis framework** that provides an end-to-end closed loop spanning data pipelines, a backtesting engine, and interactive Web dashboards. Seamlessly supporting both the **A-Share** and **US Stock** markets, it is designed to help individual investors and quant enthusiasts rapidly validate, optimize, and deploy trading strategies.
+[![GitHub stars](https://img.shields.io/github/stars/joeyrensh/pub_finance?style=flat-square)](https://github.com/joeyrensh/pub_finance/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/joeyrensh/pub_finance?style=flat-square)](https://github.com/joeyrensh/pub_finance/forks)
+[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Dash](https://img.shields.io/badge/UI-Plotly%20Dash-119DFF?style=flat-square&logo=plotly&logoColor=white)](https://dash.plotly.com/)
 
----
+OpenQuantLab brings market-data workflows, Backtrader strategy runs, and interactive Dash reports into one Python project. Explore A-share and US equity data, review strategy performance, and inspect signals in charts and tables.
 
-## 🏗️ Architecture & Core Data Flow
-OpenQuantLab features a lightweight, decoupled modular design. The core pipeline is structured as follows:
+> **Project name:** OpenQuantLab · **Repository:** [`joeyrensh/pub_finance`](https://github.com/joeyrensh/pub_finance)
+
+## Features
+
+- **A-share and US equity workflows** — market-data collection, local datasets, and scheduled update scripts.
+- **Configurable research factors** — adjust scoring weights, grouping settings, and technical indicator parameters.
+- **Backtrader strategy analysis** — run backtests and review cumulative returns, drawdowns, annual metrics, and trade records.
+- **Interactive Dash reports** — explore market summaries, sector strength, strategy signals, holdings, and searchable tables.
+- **Light and dark themes** — the dashboard adapts to the selected appearance.
+- **Optional AI summaries** — request stock summaries when an LLM provider is configured.
+
+## Screenshots
+
+The screenshots below show the dashboard in dark theme. The application also supports light theme.
+The dashboard supports both light and dark themes. Each page below is shown in both modes.
+
+![OpenQuantLab dashboard: market metrics, annual return, and interactive charts](openquantlab/finance/screenshots/dashboard-dark.jpg)
+### Dashboard
+
+<details>
+<summary>More views: backtest and settings</summary>
+<p align="center">
+  <img src="openquantlab/finance/screenshots/dashboard-light.png" alt="OpenQuantLab dashboard in light theme" width="49%">
+  <img src="openquantlab/finance/screenshots/dashboard-dark.png" alt="OpenQuantLab dashboard in dark theme" width="49%">
+</p>
+
+### Backtest
+
+![Backtest page with return and drawdown analysis](openquantlab/finance/screenshots/backtest-dark.jpg)
+<p align="center">
+  <img src="openquantlab/finance/screenshots/backtest-light.png" alt="Backtest analysis in light theme" width="49%">
+  <img src="openquantlab/finance/screenshots/backtest-dark.png" alt="Backtest analysis in dark theme" width="49%">
+</p>
+
+### Settings
+
+![Settings page with configurable scoring weights](openquantlab/finance/screenshots/settings-dark.jpg)
+<p align="center">
+  <img src="openquantlab/finance/screenshots/settings-light.png" alt="Settings page in light theme" width="49%">
+  <img src="openquantlab/finance/screenshots/settings-dark.png" alt="Settings page in dark theme" width="49%">
+</p>
+
+</details>
+
+## Data and analysis flow
 
 ```text
- 📊 Multi-Source Data           🧠 Backtesting Engine            🎨 Web Visualization
-[ Yahoo Finance ] ── (US)  ──► [  Local Data Storage  ]       [  Dash Interactive Report  ]
-                                (CSV / JSON Format)            ├── Performance Dashboard
-[EastMoney/Sina ] ── (CN)  ──►           │                     ├── Interactive Candlestick
-                                         ▼                     └── 🤖 LLM-Powered Stock Summary
-                                [   Backtrader   ] ── (Perf) ──┘
+Market data sources
+        ↓
+Local data files and update jobs
+        ↓
+Backtrader strategy runs
+        ↓
+Interactive Dash reports
 ```
 
-## 界面预览
-<p align="center">
-  <img src="https://github.com/joeyrensh/openquantlab/raw/master/openquantlab/finance/Frontpage.png" height="320" alt="回测分析主界面">
-  <img src="https://github.com/joeyrensh/openquantlab/raw/master/openquantlab/finance/Backtest.png" height="320" alt="买卖点K线分析">
-  <img src="https://github.com/joeyrensh/openquantlab/raw/master/openquantlab/finance/Config.png" height="320" alt="自定义偏好">
-</p>
-<p align="center">
-  <img src="https://github.com/joeyrensh/openquantlab/raw/master/openquantlab/finance/AI_Analysis.png" height="100" alt="AI智能摘要">
-</p>
-<p align="center">
-  left：Candlestick with Buy/Sell Signals | Trade Log &nbsp;&nbsp; Right: Weight Configuration & Returns & Drawdowns
-</p>
+## Quick start
 
-## Key Features
-- 📥 Multi-Source Data Ingestion Seamlessly integrates with mainstream data providers (e.g., Yahoo Finance, EastMoney, Sina Finance) to automatically fetch market data.
+### Requirements
 
-- 💾 Lightweight Local Storage Uses localized CSV / JSON formats supporting incremental updates and data integrity validation.
+- Python 3
+- Git
 
-- 🧠 Custom Strategy Backtesting Equipped with a highly flexible backtesting engine. Supports custom transaction logic for single assets as well as multi-asset portfolios.
+### Install and launch the local dashboard
 
-- 📊 Comprehensive Performance Analytics Automatically computes quant metrics including returns, drawdowns, and risk ratios to intuitively evaluate your strategies.
-
-📄 LLM-Powered Stock Reports Generates fundamental profiles (sector, market cap, financial health) via AI with one click (API token required).
-
-## Performance Metrics
-| Metric | Description |
-| :--- | :--- |
-| **ANN.R** | Annualized Return |
-| **CUM.R** | Cumulative Return |
-| **MX.DD** | Maximum Drawdown (MDD) |
-| **D.RISK** | Daily Risk (Volatility) |
-| **30D/120D** | 30-Day / 120-Day Rolling Returns |
-
-## Visualization Highlights
-- **Linked Displays**: Syncs the cumulative return curve with drawdown area mappings.
-- **Standard Candlestick Charts**: Integrated alongside trading volume histograms.
-- **Signal Tracking**: Highlighting **Buy (Green)** / **Sell (Red)** execution points seamlessly.
-- **Annual Performance Tables**: Supports comprehensive year-over-year data cross-comparison.
-- **AI Analytics**: Generates fundamental asset insights with just one click.
-
-## ⚡ Quick Start (Get Started in 3 Mins)
-
-### 1. Prerequisites & Dependencies Installation
-Clone the repository and install the required quantitative base dependencies:
 ```bash
-git clone [https://github.com/joeyrensh/openquantlab.git](https://github.com/joeyrensh/openquantlab.git)
-cd openquantlab
+git clone https://github.com/joeyrensh/pub_finance.git
+cd pub_finance/openquantlab
 
-# 1. activate virtual env
-conda create -n dash_env python=3.13.5 -y
-conda activate dash_env
+python3 -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -r finance/requirements.txt
 
-# 2. update fundamental tools
-pip install --upgrade pip setuptools wheel
-
-# 3. install dependency
-pip install -r requirements.txt
+python -m finance.dashreport.backtest_app
 ```
-### 2. Cold Start (Download Historical Data)
-Run the bootstrap script to pull and initialize the historical market database with a single click:
-```bash
-python -u finance/utility/history_data_download_fqt.py
-```
-### 3. Configure Scheduled Cron Jobs
-To maintain incremental updates for local data and enable automated strategy calculations, please refer to the Service Deployment (Crontab) section below to configure Linux scheduled tasks.
 
-### 4. Launch Interactive Web Dashboard
-Execute the following command to start the background daemon service and activate the fully-featured interactive Web visualization panel. Once successfully launched, open your browser and navigate to http://127.0.0.1:8050 to begin your analysis.
-```bash
-nohup python -m finance.dashreport.dash_wsgi > dash_server.log 2>&1 &
-```
-## Directory Structure
+Open <http://127.0.0.1:8050/dash-financial-report/a-share>. The dashboard reads the local datasets under `finance/`; run the relevant data collection or update scripts if your local data has not been initialized. Login credentials are managed by the dashboard configuration.
+
+## Repository layout
+
 ```text
-openquantlab/
-└── finance/
-    ├── data/                # Data storage
-    │   ├── us_stockdetail.csv  # US stock positions data
-    │   └── cn_stockdetail.csv  # A-Share positions data
-    ├── utility/             # Utility scripts, proxy tools, and scrapers
-    ├── backtraderref/       # Backtrader core strategy templates
-    ├── cncrawler/           # Scrapers for A-Shares
-    ├── uscralwer/           # Scrapers for US Stocks
-    ├── proxy/               # IP proxy pool maintenance utilities
-    ├── cnstockinfo/         # Main database for A-Share data
-    ├── usstockinfo/         # Main database for US stock data
-    ├── dashreport/          # Dashboard engineering and UI layouts
-    ├── usstock_main.py      # US stock execution entry
-    ├── cnstock_main.py      # A-Share execution entry
-    ├── us.log               # US stock run logs
-    ├── cn.log               # A-Share run logs
-    └── README.md
-```
-
-## Service Deployment (Linux Scheduled Tasks)
-### Environment Variable Setup
-Ensure you configure your Spark python paths correctly:
-```
-PYSPARK_PYTHON=/home/ubuntu/miniconda3/bin/python
-PYSPARK_DRIVER_PYTHON=/home/ubuntu/miniconda3/bin/python
-```
-### Crontab Configuration
-```
-JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:/root/miniconda3/envs/dash_env/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-PYSPARK_PYTHON = /root/miniconda3/envs/dash_env/bin/python
-
-PYSPARK_DRIVER_PYTHON = /root/miniconda3/envs/dash_env/bin/python
-
-# Run US stock strategy daily at 07:00
-45 06 * * * cd /root/openquantlab/finance ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/usstock_main.py > /root/openquantlab/finance/us.log 2>&1
-
-# Run A-Share strategy daily at 15:30
-20 15 * * * cd /root/openquantlab/finance ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/cnstock_main.py > /root/openquantlab/finance/cn.log 2>&1
-
-# Maintain Mainland China proxy pool daily at 07:30
-30 07 * * * cd /root/openquantlab/finance/proxy ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/proxy/fetch_cn_proxies.py --target 200 --workers 20 > /root/openquantlab/finance/proxy/cn_proxy.log 2>&1
-
-# Maintain Overseas proxy pool daily at 08:30
-30 08 * * * cd /root/openquantlab/finance/proxy ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/proxy/fetch_overseas_proxies.py --target 1000 --workers 20 > /root/openquantlab/finance/proxy/overseas_proxy.log 2>&1
-
-# Fetch CN stock actions data every Sunday at 06:00
-0 6 * * 0 cd /root/openquantlab/finance ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/fetch_symbol_actions.py --market cn --incremental --lookback 2w > /root/openquantlab/finance/cn_actions.log 2>&1
-
-# Fetch US stock actions data every Sunday at 06:30 (staggered by 30 mins to avoid concurrency issues and log overlapping)
-30 6 * * 0 cd /root/openquantlab/finance ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/fetch_symbol_actions.py --market us --incremental --lookback 2w > /root/openquantlab/finance/us_actions.log 2>&1
+openquantlab/finance/
+├── dashreport/       # Dash application, pages, callbacks, and charts
+├── backtraderref/    # Backtrader strategy components
+├── cncrawler/        # A-share data collection
+├── uscrawler/        # US market data collection
+├── cnstockinfo/      # A-share data workflows
+├── usstockinfo/      # US market data workflows
+├── utility/          # Shared utilities and data tools
+├── cnstock_main.py   # A-share workflow entry point
+└── usstock_main.py   # US workflow entry point
 ```
 
 ## Contributing
-Contributions make the open-source community an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated:
 
-1. Fork the Project
+Issues, ideas, and pull requests are welcome. Please open an issue to discuss a larger change before submitting it.
 
-2. Create your Feature Branch: git checkout -b feature/your-feature
+## Disclaimer
 
-3. Commit your Changes: git commit -m "feat: add some amazing feature"
-
-4. Push to the Branch: git push origin feature/your-feature
-
-5. Open a Pull Request
-
-## Contact & Feedback
-- Email: haifengreal@qq.com
-- Issues: https://github.com/joeyrensh/openquantlab/issues
-
-**⭐ If this project helped you, please give us a Star!**
-
-[⬆ Back to Top](#pub-finance)
-
-
-
-# OpenQuantLab [中文版]
-
-> 🌟 开源免费量化分析框架 | 支持 A股 / 美股 | 策略回测 + 动态可视化分析
-
-[![GitHub Stars](https://img.shields.io/github/stars/joeyrensh/openquantlab?style=flat-square)](https://github.com/joeyrensh/openquantlab)
-[![Package Size](https://img.shields.io/github/languages/code-size/joeyrensh/openquantlab)](https://github.com/joeyrensh/openquantlab)
-[![License](https://img.shields.io/github/license/joeyrensh/openquantlab?color=blue)](https://github.com/joeyrensh/openquantlab)
-
-## 📌 简介
-OpenQuantLab 是一套**全流程开源量化分析框架**，提供从数据流、策略引擎到交互式 Web 报表的全链路闭环。框架原生支持 **A 股、美股** 两大市场，旨在帮助个人投资者与量化爱好者快速验证、优化并落地交易策略。
+This project is for research and educational use. It is not investment advice, and backtest results do not guarantee future performance.
 
 ---
 
-## 🏗️ 技术架构与核心数据流
-OpenQuantLab 采用轻量低耦合的模块化设计，核心链路如下：
+## 简体中文
+
+**面向 A 股与美股的开源量化研究和组合分析工具。**
+
+OpenQuantLab 将行情数据处理、Backtrader 策略回测与 Dash 交互式报表整合在一个 Python 项目中，便于浏览市场数据、评估策略表现和查看交易信号。
+
+### 功能特点
+
+- **A 股与美股数据流程**：行情采集、本地数据集及定时更新脚本。
+- **可配置的研究因子**：调整评分权重、分组设置和技术指标参数。
+- **Backtrader 策略分析**：执行回测，查看累计收益、回撤、年度指标和交易记录。
+- **交互式 Dash 报表**：查看市场摘要、行业强弱、策略信号、持仓及可筛选表格。
+- **浅色和深色主题**：页面适配所选主题。
+- **可选 AI 摘要**：配置 LLM 服务后可请求个股摘要。
+
+### 界面截图
+
+仓库现有截图为深色主题；应用同时支持浅色主题。
+上方英文版截图区展示了仪表盘、回测和设置页面在浅色与深色主题下的效果。
+
+![OpenQuantLab 仪表盘：市场指标、年度收益和交互图表](openquantlab/finance/screenshots/dashboard-dark.jpg)
+
+<details>
+<summary>更多界面：回测与设置</summary>
+
+#### 回测
+
+![回测页面：收益与回撤分析](openquantlab/finance/screenshots/backtest-dark.jpg)
+
+#### 设置
+
+![设置页面：可配置评分权重](openquantlab/finance/screenshots/settings-dark.jpg)
+
+</details>
+
+### 快速开始
+
+```bash
+git clone https://github.com/joeyrensh/pub_finance.git
+cd pub_finance/openquantlab
+
+python3 -m venv .venv
+source .venv/bin/activate       # Windows: .venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -r finance/requirements.txt
+
+python -m finance.dashreport.backtest_app
+```
+
+浏览器打开 <http://127.0.0.1:8050/dash-financial-report/a-share>。Dash 页面读取 `finance/` 下的本地数据；首次使用前，请运行对应的数据采集或更新脚本。登录凭证由应用配置管理。
+
+### 项目结构
 
 ```text
- 📊 多源数据流                 🧠 策略回测引擎               🎨 Web 可视化面板
-[Yahoo Finance] ── (美股) ──► [数据本地存储]               [ Dash 交互报表 ]
-                              (CSV / JSON)                 ├── 绩效联动看板
-[东方财富/新浪] ── (A股)  ──►      │                       ├── 智能买卖K线
-                                  ▼                        └── 🤖 AI 个股大模型摘要
-                              [ Backtrader ] ── (绩效分析) ┘
+openquantlab/finance/
+├── dashreport/       # Dash 应用、页面、回调和图表
+├── backtraderref/    # Backtrader 策略组件
+├── cncrawler/        # A 股数据采集
+├── uscrawler/        # 美股数据采集
+├── cnstockinfo/      # A 股数据流程
+├── usstockinfo/      # 美股数据流程
+├── utility/          # 通用工具和数据脚本
+├── cnstock_main.py   # A 股流程入口
+└── usstock_main.py   # 美股流程入口
 ```
 
-## 界面预览
-<p align="center">
-  <img src="https://github.com/joeyrensh/openquantlab/raw/master/openquantlab/finance/Frontpage.png" height="320" alt="回测分析主界面">
-  <img src="https://github.com/joeyrensh/openquantlab/raw/master/openquantlab/finance/Backtest.png" height="320" alt="买卖点K线分析">
-  <img src="https://github.com/joeyrensh/openquantlab/raw/master/openquantlab/finance/Config.png" height="320" alt="自定义偏好">
-</p>
-<p align="center">
-  <img src="https://github.com/joeyrensh/openquantlab/raw/master/openquantlab/finance/AI_Analysis.png" height="100" alt="AI智能摘要">
-</p>
-<p align="center">
-  左侧：K线图 + 买卖信号标记 &nbsp;&nbsp; 右侧：回测配置 & 绩效指标面板
-</p>
+欢迎通过 Issues 反馈问题、提出想法或提交 Pull Request。较大的改动建议先开 Issue 讨论。
 
-## 核心功能
-- 📥 **多源数据采集**
-  对接 Yahoo Finance、东方财富、新浪财经等主流数据源，自动拉取行情数据。
+> 本项目仅供研究和学习使用，不构成投资建议。历史回测结果不代表未来表现。
 
-- 💾 **轻量化数据存储**
-  采用 CSV / JSON 本地存储，支持增量更新与数据完整性校验。
+---
 
-- 🧠 **自定义策略回测**
-  内置灵活回测引擎，支持自定义买卖逻辑，可单标的或多标的组合回测。
-
-- 📊 **全方位绩效分析**
-  自动计算收益、回撤、风险等量化指标，直观评估策略表现。
-
-- 📄 **个股信息报告**
-  AI一键生成个股行业、市值、财务等基础信息报告，需配置token。
-
-## 绩效指标说明
-| 指标缩写 | 指标名称 |
-| :--- | :--- |
-| ANN.R | 年化收益率 |
-| CUM.R | 累计收益率 |
-| MX.DD | 最大回撤 |
-| D.RISK | 日间风险 |
-| 30D/120D | 30日 / 120日滚动收益 |
-
-## 可视化特点
-- 收益曲线 + 回撤区域联动展示
-- 标准 K 线图 + 成交量柱状图
-- 红绿点位标记**买入/卖出**信号
-- 年度绩效表格，多年数据横向对比
-- AI一键生成基本面
-
-## ⚡ Quick Start (三分钟极速上手)
-
-### 1. 环境准备与依赖安装
-克隆代码库并安装所需的量化基础依赖：
-```bash
-git clone [https://github.com/joeyrensh/openquantlab.git](https://github.com/joeyrensh/openquantlab.git)
-cd openquantlab
-
-# 1. 创建并激活相同的 Python 3.13 环境
-conda create -n dash_env python=3.13.5 -y
-conda activate dash_env
-
-# 2. 升级基础构建工具（防止编译 C 扩展库时报错，如 curl_cffi, pyarrow 等）
-pip install --upgrade pip setuptools wheel
-
-# 3. 一次性精准安装所有依赖
-pip install -r requirements.txt
-```
-### 2. 环境冷启动（下载历史数据）
-运行历史数据下载脚本，一键拉取并初始化市场历史行情底表：
-```bash
-python -u finance/utility/history_data_download.py
-```
-### 3. 配置 Crontab 定时任务
-为了保持本地数据的增量更新与策略的自动演算，请参照下方 自动化生产任务 (Crontab) 章节配置 Linux 定时任务。
-
-### 4. 启动可视化交互服务
-执行以下命令开启后台常驻服务，即可激活全功能交互式 Web 可视化面板，启动成功后，在浏览器访问 http://127.0.0.1:8050 即可开始分析。
-```bash
-nohup python -m finance.dashreport.dash_wsgi > dash_server.log 2>&1 &
-```
-
-## 项目目录结构
-```text
-openquantlab/
-└── finance/
-    ├── data/                # 数据存储目录
-    │   ├── us_stockdetail.csv  # 美股持仓数据
-    │   └── cn_stockdetail.csv  # A股持仓数据
-    ├── utility/             # 工具脚本、代理池、数据采集工具
-    ├── backtraderref/       # backtrader主策略
-    ├── cncrawler/           # A股爬虫
-    ├── uscralwer/           # 美股爬虫
-    ├── proxy/               # 代理池维护工具
-    ├── cnstockinfo/         # A股主数据存储
-    ├── usstockinfo/         # 美股主数据存储
-    ├── dashreport/          # 可视化工程
-    ├── usstock_main.py      # 美股主程序
-    ├── cnstock_main.py      # A股主程序
-    ├── us.log               # 美股运行日志
-    ├── cn.log               # A股运行日志
-    └── README.md
-```
-## 服务部署（Linux 定时任务）
-### 环境变量配置
-```
-PYSPARK_PYTHON=/home/ubuntu/miniconda3/bin/python
-PYSPARK_DRIVER_PYTHON=/home/ubuntu/miniconda3/bin/python
-```
-### Crontab 定时任务
-```
-JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:/root/miniconda3/envs/dash_env/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-PYSPARK_PYTHON = /root/miniconda3/envs/dash_env/bin/python
-
-PYSPARK_DRIVER_PYTHON = /root/miniconda3/envs/dash_env/bin/python
-
-# 美股主策略
-45 06 * * * cd /root/openquantlab/finance ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/usstock_main.py > /root/openquantlab/finance/us.log 2>&1
-
-# A股主策略
-20 15 * * * cd /root/openquantlab/finance ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/cnstock_main.py > /root/openquantlab/finance/cn.log 2>&1
-
-# A股代理获取
-30 07 * * * cd /root/openquantlab/finance/proxy ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/proxy/fetch_cn_proxies.py --target 200 --workers 20 > /root/openquantlab/finance/proxy/cn_proxy.log 2>&1
-
-# 美股代理获取
-30 08 * * * cd /root/openquantlab/finance/proxy ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/proxy/fetch_overseas_proxies.py --target 1000 --workers 20 > /root/openquantlab/finance/proxy/overseas_proxy.log 2>&1
-
-# 每周日早上 6:00 抓取 CN 市场除权数据
-0 6 * * 0 cd /root/openquantlab/finance ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/fetch_symbol_actions.py --market cn --incremental --lookback 2w > /root/openquantlab/finance/cn_actions.log 2>&1
-
-# 每周日早上 6:30 抓取 US 市场除权数据 (错开 30 分钟避免并发冲撞与日志混淆)
-30 6 * * 0 cd /root/openquantlab/finance ; /root/miniconda3/envs/dash_env/bin/python -u /root/openquantlab/finance/fetch_symbol_actions.py --market us --incremental --lookback 2w > /root/openquantlab/finance/us_actions.log 2>&1
-```
-## 参与贡献
-欢迎大家提交 Issue 和 Pull Request，共同完善项目：
-1. Fork 本仓库
-2. 创建功能分支：git checkout -b feature/your-feature
-3. 提交代码：git commit -m "feat: add new feature"
-4. 推送分支：git push origin feature/your-feature
-5. 提交 Pull Request
-## 联系方式
-- Email: haifengreal@qq.com
-- Issues: https://github.com/joeyrensh/openquantlab/issues
-
-**⭐ 如果这个项目对你有帮助，请给一个 Star!**
-
-[⬆ 返回顶部](#-量化分析框架)
+If OpenQuantLab is useful to you, consider starring the repository.
