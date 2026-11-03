@@ -31,23 +31,21 @@ The dashboard supports both light and dark themes. Each page below is shown in b
 ### Dashboard
 
 <details>
-<summary>More views: backtest and settings</summary>
+<summary>More views: dashboard</summary>
 <p align="center">
   <img src="openquantlab/finance/screenshots/dashboard-light.png" alt="OpenQuantLab dashboard in light theme" width="49%">
   <img src="openquantlab/finance/screenshots/dashboard-dark.png" alt="OpenQuantLab dashboard in dark theme" width="49%">
 </p>
 
 ### Backtest
-
-![Backtest page with return and drawdown analysis](openquantlab/finance/screenshots/backtest-dark.png)
+<summary>More views: Backtest page with return and drawdown analysis</summary>
 <p align="center">
   <img src="openquantlab/finance/screenshots/backtest-light.png" alt="Backtest analysis in light theme" width="49%">
   <img src="openquantlab/finance/screenshots/backtest-dark.png" alt="Backtest analysis in dark theme" width="49%">
 </p>
 
 ### Settings
-
-![Settings page with configurable scoring weights](openquantlab/finance/screenshots/settings-dark.png)
+<summary>More views: Settings page with configurable scoring weights</summary>
 <p align="center">
   <img src="openquantlab/finance/screenshots/settings-light.png" alt="Settings page in light theme" width="49%">
   <img src="openquantlab/finance/screenshots/settings-dark.png" alt="Settings page in dark theme" width="49%">
@@ -138,15 +136,25 @@ OpenQuantLab 将行情数据处理、Backtrader 策略回测与 Dash 交互式�
 ![OpenQuantLab 仪表盘：市场指标、年度收益和交互图表](openquantlab/finance/screenshots/dashboard-dark.png)
 
 <details>
-<summary>更多界面：回测与设置</summary>
+<summary>更多界面：仪表板</summary>
+<p align="center">
+  <img src="openquantlab/finance/screenshots/dashboard-light.png" alt="OpenQuantLab dashboard in light theme" width="49%">
+  <img src="openquantlab/finance/screenshots/dashboard-dark.png" alt="OpenQuantLab dashboard in dark theme" width="49%">
+</p>
 
 #### 回测
-
-![回测页面：收益与回撤分析](openquantlab/finance/screenshots/backtest-dark.png)
+<summary>更多界面：回测页面：收益与回撤分析</summary>
+<p align="center">
+  <img src="openquantlab/finance/screenshots/backtest-light.png" alt="OpenQuantLab backtest in light theme" width="49%">
+  <img src="openquantlab/finance/screenshots/backtest-dark.png" alt="OpenQuantLab backtest in dark theme" width="49%">
+</p>
 
 #### 设置
-
-![设置页面：可配置评分权重](openquantlab/finance/screenshots/settings-dark.png)
+<summary>更多界面：设置页面：可配置评分权重</summary>
+<p align="center">
+  <img src="openquantlab/finance/screenshots/settings-light.png" alt="Settings page in light theme" width="49%">
+  <img src="openquantlab/finance/screenshots/settings-dark.png" alt="Settings page in dark theme" width="49%">
+</p>
 
 </details>
 
