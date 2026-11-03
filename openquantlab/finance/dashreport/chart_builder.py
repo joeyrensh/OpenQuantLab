@@ -2630,7 +2630,7 @@ class ChartBuilder:
                 header=dict(
                     values=header_values,
                     fill_color=cfg["table-header-color"],
-                    line=dict(color=cfg["border-color"], width=0.5),
+                    line=dict(color=cfg["border-color"], width=0),
                     font=dict(
                         size=layout_cfg["table_font"],
                         color=cfg["text-color"],
@@ -2642,7 +2642,7 @@ class ChartBuilder:
                 cells=dict(
                     values=cell_values,
                     fill_color=cfg["table-cell-color"],
-                    line=dict(color=cfg["border-color"], width=0.5),
+                    line=dict(color=cfg["border-color"], width=0),
                     font=dict(
                         size=font_sizes_by_col,
                         color=font_colors_by_col,
