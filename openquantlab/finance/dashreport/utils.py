@@ -130,17 +130,19 @@ def check_value_type(value):
         return value, "text"
 
 
-def data_bars(df, column):
-    col_n = column + "_o"
+def data_bars(df, column, source_values=None):
+    values = pd.to_numeric(
+        df[column] if source_values is None else source_values, errors="coerce"
+    )
 
     # 获取值的范围
-    min_val = df[col_n].min()
-    max_val = df[col_n].max()
+    min_val = values.min()
+    max_val = values.max()
 
     styles = []
     style_cache = {}  # 缓存样式，避免重复计算
 
-    for value in df[col_n]:
+    for value in values:
         if pd.isna(value) or value in style_cache:
             continue
 
@@ -150,7 +152,7 @@ def data_bars(df, column):
             style = {
                 "if": {
                     "filter_query": "{{{column}}} = {value}".format(
-                        column=col_n, value=value
+                        column=column, value=value
                     ),
                     "column_id": column,
                 },
@@ -174,7 +176,7 @@ def data_bars(df, column):
             style = {
                 "if": {
                     "filter_query": "{{{column}}} = {value}".format(
-                        column=col_n, value=value
+                        column=column, value=value
                     ),
                     "column_id": column,
                 },
@@ -195,7 +197,7 @@ def data_bars(df, column):
         else:  # 零值
             style = {
                 "if": {
-                    "filter_query": "{{{column}}} = 0".format(column=col_n),
+                    "filter_query": "{{{column}}} = 0".format(column=column),
                     "column_id": column,
                 },
                 "background": "none",
@@ -213,17 +215,20 @@ def data_bars(df, column):
     return styles
 
 
-def discrete_background_color_bins(df, column, n_bins=10, positive_is_red=False, mid=0):
+def discrete_background_color_bins(
+    df, column, n_bins=10, positive_is_red=False, mid=0, source_values=None
+):
     """
     使用CSS变量和透明度的版本，更好地适应暗黑模式
     修正：正负值区间分开计算，正值用mid到正值最大值，负值用负值最小值到mid
     mid: 渐变中心值，默认0，可设置为1或其它
     """
-    col_o = column + "_o"
-    if col_o not in df.columns:
+    if column not in df.columns:
         return []
 
-    vals = pd.to_numeric(df[col_o], errors="coerce").dropna()
+    vals = pd.to_numeric(
+        df[column] if source_values is None else source_values, errors="coerce"
+    ).dropna()
     if vals.empty:
         return []
 
@@ -236,7 +241,7 @@ def discrete_background_color_bins(df, column, n_bins=10, positive_is_red=False,
     styles.append(
         {
             "if": {
-                "filter_query": "{{{}}} = {}".format(col_o, mid),
+                "filter_query": "{{{}}} = {}".format(column, mid),
                 "column_id": column,
             },
             "background": "transparent",
@@ -270,7 +275,7 @@ def discrete_background_color_bins(df, column, n_bins=10, positive_is_red=False,
         return {
             "if": {
                 "filter_query": "{{{col}}} >= {low} && {{{col}}} <= {high} && {{{col}}} != {mid}".format(
-                    col=col_o, low=repr(low), high=repr(high), mid=repr(mid)
+                    col=column, low=repr(low), high=repr(high), mid=repr(mid)
                 ),
                 "column_id": column,
             },
@@ -541,11 +546,18 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                 "placeholder_text": "Search",
                 "case": "sensitive",
             }
-    # 遍历 DataFrame 的所有列
-    for col in df.columns:
-        # 为每一列创建一个新的列，新的列名为原列名加上后缀 "_o"
-        df[col + "_o"] = original_df[col]
-    data = df.to_dict("records")
+    # Preserve original values only for columns whose displayed content changes
+    # and is still needed by callbacks/highlighting.
+    for col in ("SYMBOL", "NAME"):
+        if col in original_df.columns:
+            df[f"{col}_o"] = original_df[col]
+
+    # These columns are used above for scoring but are not displayed or needed
+    # by table callbacks, so keep them out of the DataTable row payload.
+    payload_excluded_cols = [
+        col for col in ("DAILY RETURN", "STRATEGY CNT") if col in df.columns
+    ]
+    data = df.drop(columns=payload_excluded_cols).to_dict("records")
 
     def format_value(value, value_type):
         if value_type == "img":
@@ -597,7 +609,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                 "background": "none",
                 # "color": "var(--text-color)",
             }
-            for col in df.columns
+            for col in original_df.columns
             if col in cols_format and len(cols_format[col]) == 1
         ]
         + [
@@ -608,14 +620,14 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                 "background": "none",
                 # "color": "var(--text-color)",
             }
-            for col in df.columns
+            for col in original_df.columns
             if col not in cols_format
         ]
         + [
             {
                 "if": {
                     "filter_query": "{{{column}}} >= {value} and {{{column}}} != 'nan'".format(
-                        column=col + "_o", value=date_threshold_l5
+                        column=col, value=date_threshold_l5
                     ),
                     "column_id": col,
                 },
@@ -624,7 +636,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                 "backgroundColor": ("""var(--date-bg-color)"""),
                 # "color": "var(--text-color)",
             }
-            for col in df.columns
+            for col in original_df.columns
             if col in cols_format
             and len(cols_format[col]) > 1
             and cols_format[col][0] == "date"
@@ -634,13 +646,13 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
             {
                 "if": {
                     "filter_query": "{{{column}}} = {value} and {{{column}}} != 'nan'".format(
-                        column=col + "_o", value="Buy"
+                        column=col, value="Buy"
                     ),
                     "column_id": col,
                 },
                 "backgroundColor": ("""var(--positive-databar-color)"""),
             }
-            for col in df.columns
+            for col in original_df.columns
             if col in cols_format
             and len(cols_format[col]) > 1
             and cols_format[col][0] == "text"
@@ -649,12 +661,12 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
         + [
             {
                 "if": {
-                    "filter_query": "{{{}}} < 0".format(col + "_o"),
+                    "filter_query": "{{{}}} < 0".format(col),
                     "column_id": col,
                 },
                 "color": "var(--negative-int-bg-color)",
             }
-            for col in df.columns
+            for col in original_df.columns
             if col in cols_format
             and len(cols_format[col]) > 1
             and cols_format[col][0] in ("float", "int")
@@ -663,12 +675,12 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
         + [
             {
                 "if": {
-                    "filter_query": "{{{}}} > 0".format(col + "_o"),
+                    "filter_query": "{{{}}} > 0".format(col),
                     "column_id": col,
                 },
                 "color": "var(--positive-int-bg-color)",
             }
-            for col in df.columns
+            for col in original_df.columns
             if col in cols_format
             and len(cols_format[col]) > 1
             and cols_format[col][0] in ("float", "int")
@@ -677,21 +689,27 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
         + highlight_conditional
     )
 
-    for col in df.columns:
+    for col in original_df.columns:
         if (
             col in cols_format
             and len(cols_format[col]) > 1
             and cols_format[col][0] == "ratio"
             and cols_format[col][1] == "format"
         ):
-            style_data_conditional.extend(data_bars(df, col))
+            style_data_conditional.extend(data_bars(df, col, original_df.get(col)))
 
     # 在这里把按值分段着色应用到需要的列
     gradient_target_cols = ["ERP"]
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
-            discrete_background_color_bins(df, col, n_bins=10, positive_is_red=True)
+            discrete_background_color_bins(
+                df,
+                col,
+                n_bins=10,
+                positive_is_red=True,
+                source_values=original_df.get(col),
+            )
         )
 
     # 在这里把按值分段着色应用到需要的列
@@ -700,7 +718,12 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
     for col in gradient_target_cols:
         style_data_conditional.extend(
             discrete_background_color_bins(
-                df, col, n_bins=10, positive_is_red=True, mid=1
+                df,
+                col,
+                n_bins=10,
+                positive_is_red=True,
+                mid=1,
+                source_values=original_df.get(col),
             )
         )
 
@@ -709,7 +732,12 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
     for col in gradient_target_cols:
         style_data_conditional.extend(
             discrete_background_color_bins(
-                df, col, n_bins=10, positive_is_red=True, mid=0
+                df,
+                col,
+                n_bins=10,
+                positive_is_red=True,
+                mid=0,
+                source_values=original_df.get(col),
             )
         )
 
@@ -717,14 +745,26 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
-            discrete_background_color_bins(df, col, n_bins=10, positive_is_red=True)
+            discrete_background_color_bins(
+                df,
+                col,
+                n_bins=10,
+                positive_is_red=True,
+                source_values=original_df.get(col),
+            )
         )
 
     gradient_target_cols = ["L5 CLOSE"]
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
-            discrete_background_color_bins(df, col, n_bins=10, positive_is_red=False)
+            discrete_background_color_bins(
+                df,
+                col,
+                n_bins=10,
+                positive_is_red=False,
+                source_values=original_df.get(col),
+            )
         )
 
     table_id = {
