@@ -35,7 +35,9 @@ check_logs.sh*
 !china_proxies.txt
 !overseas_proxies.txt
 !utility/proxy.txt
-!Backtest.png
-!Frontpage.png
-!Config.png
-!AI_Analysis.png
+!screenshots/dashboard-light.png
+!screenshots/dashboard-dark.png
+!screenshots/backtest-light.png
+!screenshots/backtest-dark.png
+!screenshots/settings-light.png
+!screenshots/settings-dark.png
