@@ -332,14 +332,50 @@
 
 /* Give Settings cards room for slider marks and long parameter labels. */
 #page-content .settings-page .sub_page > div > .row {
-  row-gap: 16px;
-  margin-bottom: 14px;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+#page-content .settings-page .sub_page > div > .row > [class*="col-"] {
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+#page-content .settings-page .sub_page > div > .row > .col-lg-12 {
+  grid-column: 1 / -1;
 }
 
 #page-content .settings-page .weight-config-card {
   min-width: 0;
-  margin-bottom: 14px !important;
   overflow: visible;
+  margin-bottom: 8px;
+}
+
+@media (min-width: 767px) {
+  #page-content .settings-page .weight-config-card .grp-flex-row {
+    display: grid !important;
+    grid-template-columns: minmax(210px, 230px) minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: start !important;
+  }
+
+  #page-content .settings-page .weight-config-card .grp-label-fixed {
+    width: auto !important;
+    min-width: 0 !important;
+    white-space: normal !important;
+    line-height: 1.35;
+  }
+
+  #page-content .settings-page .weight-config-card .custom-grp-radio {
+    min-width: 0;
+    flex-wrap: wrap !important;
+    gap: 8px 16px !important;
+  }
 }
 
 #page-content .settings-page .weight-config-card .card-header {
@@ -405,6 +441,13 @@
 
   #page-content .settings-page .weight-config-card .card-body > .row:has(.weight-slider-primary) > .l2_label {
     margin-bottom: 0 !important;
+  }
+}
+
+@media (min-width: 767px) {
+  #page-content .settings-page .sub_page > div > .row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
   }
 }
 
