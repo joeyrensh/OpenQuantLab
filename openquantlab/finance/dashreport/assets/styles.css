@@ -423,6 +423,8 @@ table.tiny-header tr:first-child { font-size: 8px; }
   border-spacing: 0 !important;
   border-top: none !important;
   background-color: var(--kpi-background) !important;
+  line-height: 1.3 !important;
+  padding: 5px 2px !important;
 }
 
 .dash-select-header,
