@@ -2623,6 +2623,36 @@ class ChartBuilder:
         TABLE_DOMAIN_Y = [0.0, round(table_y_ratio, 3)]
         CHART_DOMAIN_Y = [round(table_y_ratio + layout_cfg["gap_ratio"], 3), 1.0]
 
+        # go.Table 的 SVG cell rect 在不同画布宽度下会受到裁切和缩放影响，
+        # 因此用 paper 坐标直接绘制表格的水平边界，保证宽窄屏线宽一致。
+        table_divider_shapes = []
+        table_domain_height = TABLE_DOMAIN_Y[1] - TABLE_DOMAIN_Y[0]
+        if table_pixel_height > 0 and table_domain_height > 0:
+            row_boundaries = [0, layout_cfg["header_h"]]
+            row_boundaries.extend(
+                layout_cfg["header_h"] + row * layout_cfg["cell_h"]
+                for row in range(1, num_rows + 1)
+            )
+            for boundary in row_boundaries:
+                y = TABLE_DOMAIN_Y[0] + table_domain_height * (
+                    1 - boundary / table_pixel_height
+                )
+                table_divider_shapes.append(
+                    dict(
+                        type="line",
+                        xref="paper",
+                        yref="paper",
+                        x0=0,
+                        x1=1,
+                        y0=y,
+                        y1=y,
+                        layer="above",
+                        # 相邻单元格原本各贡献 0.5px 描边，叠加后约为 1px；
+                        # 独立绘制边界时用 1px 保持视觉粗细一致。
+                        line=dict(color=cfg["border-color"], width=1),
+                    )
+                )
+
         # 添加 Table (将尺寸用 layout_cfg，色彩用 theme_cfg)
         fig.add_trace(
             go.Table(
@@ -2659,6 +2689,7 @@ class ChartBuilder:
 
         # 更新图表布局
         fig.update_layout(
+            shapes=table_divider_shapes,
             dragmode=False,
             autosize=True,
             margin=dict(l=0, r=0, t=0, b=0),

@@ -748,14 +748,6 @@ legend {
   font-weight: bold !important;
 }
 
-.chart-container .table .y-column #cells1 .column-cell:nth-child(1) .cell-rect {
-    stroke: var(--gridcolor) !important;
-    stroke-width: 0.5px !important;
-    stroke-opacity: 1 !important;
-    vector-effect: non-scaling-stroke !important;
-    clip-path: inset(-1.5px 1.5px) !important;
-}
-
 #us-annual-return-light,
 #us-annual-return-dark,
 #cn-annual-return-light,
