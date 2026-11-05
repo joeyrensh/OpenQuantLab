@@ -9,8 +9,8 @@
   --highlight-symbol-color: #ff4444;
   --negative-int-bg-color: #0d876d;
   --positive-int-bg-color: #ff4444;
-  --positive-databar-color: #ff444480;
-  --negative-databar-color: #0d876d80;
+  --positive-databar-color: #ff4444bf;
+  --negative-databar-color: #0d876dbf;
   --gridcolor: #D1D5DBCC;
   
   /* 通用样式 */
@@ -40,8 +40,8 @@
     --date-bg-color: #3B82F615;
     --negative-int-bg-color: #00875A;    
     --positive-int-bg-color: #ff4444;    
-    --positive-databar-color: #ff444480;
-    --negative-databar-color: #00875A80;
+    --positive-databar-color: #ff4444bf;
+    --negative-databar-color: #00875Abf;
     --gridcolor: #2D3748CC;
     
     /* 通用样式 */
