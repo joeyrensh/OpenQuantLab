@@ -232,7 +232,7 @@ def data_bars(df, column, source_values=None):
             },
             "background": background,
             "minWidth": (
-                "max(112px, calc({label_width:.3f}em + {extra_width:g}px))"
+                "max(96px, calc({label_width:.3f}em + {extra_width:g}px))"
             ).format(
                 label_width=label_width_em,
                 extra_width=min_cell_extra_width_px,
