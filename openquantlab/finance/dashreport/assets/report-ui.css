@@ -3,6 +3,7 @@
 :root {
   --report-card-shadow: 0 3px 14px rgba(31, 60, 100, 0.08);
   --progress-bar-length: 112px;
+  --track-height-px: 8px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -14,6 +15,7 @@
 @media (max-width: 550px) {
   :root {
     --progress-bar-length: 82px;
+    --track-height-px: 4px;
   }
 }
 

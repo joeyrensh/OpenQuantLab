@@ -160,7 +160,7 @@ def _numeric_label_width_em(values, value_format="ratio", precision=2):
 _RATIO_BAR_STYLE = {
     "label_gap_px": 0.5,
     "cell_padding_px": 2,
-    "track_height_px": 8,
+    "track_height_px": "var(--track-height-px)",
     "track_start_px": 2,
     "min_track_width_px": 28,
 }
@@ -216,7 +216,7 @@ def data_bars(df, column, source_values=None):
         # separate longhand is applied.
         background = (
             "{gradient} left center / calc(100% - {label_width:.3f}em - "
-            "{gap:g}px) {height:g}px no-repeat"
+            "{gap:g}px) {height} no-repeat"
         ).format(
             gradient=gradient.strip(),
             label_width=label_width_em,
