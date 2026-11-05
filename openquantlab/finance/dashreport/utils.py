@@ -130,7 +130,49 @@ def check_value_type(value):
         return value, "text"
 
 
+def _numeric_label_width_em(values, value_format="ratio", precision=2):
+    """Estimate the widest rendered numeric label for reserving cell space."""
+    valid_values = pd.to_numeric(values, errors="coerce").dropna()
+
+    def label_width(value):
+        if value_format == "ratio":
+            label = f"{float(value):.{precision}%}"
+        elif value_format == "int":
+            label = f"{float(value):.0f}"
+        else:
+            label = f"{float(value):.{precision}f}"
+        return sum(
+            0.62
+            if char.isdigit()
+            else 0.30
+            if char == "."
+            else 0.90
+            if char == "%"
+            else 0.42
+            if char in ("-", "−")
+            else 0.62
+            for char in label
+        )
+
+    return max((label_width(value) for value in valid_values), default=4.4)
+
+
+_RATIO_BAR_STYLE = {
+    "label_gap_px": 0.5,
+    "cell_padding_px": 2,
+    "track_height_px": 8,
+    "track_start_px": 2,
+    "min_track_width_px": 28,
+}
+
+
 def data_bars(df, column, source_values=None):
+    label_gap_px = _RATIO_BAR_STYLE["label_gap_px"]
+    cell_padding_px = _RATIO_BAR_STYLE["cell_padding_px"]
+    track_height_px = _RATIO_BAR_STYLE["track_height_px"]
+    track_start_px = _RATIO_BAR_STYLE["track_start_px"]
+    min_track_width_px = _RATIO_BAR_STYLE["min_track_width_px"]
+
     values = pd.to_numeric(
         df[column] if source_values is None else source_values, errors="coerce"
     )
@@ -142,6 +184,66 @@ def data_bars(df, column, source_values=None):
     styles = []
     style_cache = {}  # 缓存样式，避免重复计算
 
+    # The full-length track stops label_gap_px before the right-aligned value.
+    label_width_em = _numeric_label_width_em(values, "ratio")
+    label_gap_with_padding_px = cell_padding_px + label_gap_px
+    min_cell_extra_width_px = (
+        track_start_px + min_track_width_px + label_gap_with_padding_px
+    )
+
+    def progress_style(value, percentage, fill_color):
+        percentage = max(0.0, min(100.0, float(percentage)))
+        # Keep the start inset while scaling the fill to the responsive track.
+        fill_end = "calc({percentage:.4f}% + {offset:.4f}px)".format(
+            percentage=percentage,
+            offset=track_start_px * (1 - percentage / 100.0),
+        )
+        gradient = """
+            linear-gradient(90deg,
+                transparent 0%,
+                transparent {track_start_px}px,
+                {fill_color} {track_start_px}px,
+                {fill_color} {fill_end},
+                transparent {fill_end},
+                transparent 100%)
+        """.format(
+            track_start_px=track_start_px,
+            fill_color=fill_color,
+            fill_end=fill_end,
+        )
+        # Put size, position, and repeat in the same shorthand. Dash's table
+        # conditional styles can otherwise reset background-size after the
+        # separate longhand is applied.
+        background = (
+            "{gradient} left center / calc(100% - {label_width:.3f}em - "
+            "{gap:g}px) {height:g}px no-repeat"
+        ).format(
+            gradient=gradient.strip(),
+            label_width=label_width_em,
+            gap=label_gap_with_padding_px,
+            height=track_height_px,
+        )
+        return {
+            "if": {
+                "filter_query": "{{{column}}} = {value}".format(
+                    column=column, value=value
+                ),
+                "column_id": column,
+            },
+            "background": background,
+            "minWidth": (
+                "max(112px, calc({label_width:.3f}em + {extra_width:g}px))"
+            ).format(
+                label_width=label_width_em,
+                extra_width=min_cell_extra_width_px,
+            ),
+            "borderRadius": "0",
+            "textAlign": "right",
+            "paddingRight": f"{cell_padding_px:g}px",
+            "paddingBottom": "4px",
+            "paddingTop": "4px",
+        }
+
     for value in values:
         if pd.isna(value) or value in style_cache:
             continue
@@ -149,65 +251,13 @@ def data_bars(df, column, source_values=None):
         if value > 0:
             # 正值百分比 - 相对于最大值
             percentage = (value / max_val) * 100 if max_val > 0 else 0
-            style = {
-                "if": {
-                    "filter_query": "{{{column}}} = {value}".format(
-                        column=column, value=value
-                    ),
-                    "column_id": column,
-                },
-                "background": """
-                    linear-gradient(90deg,
-                    var(--positive-databar-color) 0%,
-                    var(--positive-databar-color) {percentage}%,
-                    transparent {percentage}%,
-                    transparent 100%)
-                """.format(percentage=percentage),
-                "borderRadius": "4px",
-                "backgroundSize": "100% 70%",
-                "backgroundRepeat": "no-repeat",
-                "backgroundPosition": "center",
-                "paddingBottom": "4px",
-                "paddingTop": "4px",
-            }
+            style = progress_style(value, percentage, "var(--positive-databar-color)")
         elif value < 0:
             # 负值百分比 - 相对于最小值的绝对值
             percentage = (abs(value) / abs(min_val)) * 100 if min_val < 0 else 0
-            style = {
-                "if": {
-                    "filter_query": "{{{column}}} = {value}".format(
-                        column=column, value=value
-                    ),
-                    "column_id": column,
-                },
-                "background": """
-                    linear-gradient(90deg,
-                    transparent 0%,
-                    transparent {transparent_percentage}%,
-                    var(--negative-databar-color) {transparent_percentage}%,
-                    var(--negative-databar-color) 100%)
-                """.format(transparent_percentage=100 - percentage),
-                "borderRadius": "4px",
-                "backgroundSize": "100% 70%",
-                "backgroundRepeat": "no-repeat",
-                "backgroundPosition": "center",
-                "paddingBottom": "4px",
-                "paddingTop": "4px",
-            }
+            style = progress_style(value, percentage, "var(--negative-databar-color)")
         else:  # 零值
-            style = {
-                "if": {
-                    "filter_query": "{{{column}}} = 0".format(column=column),
-                    "column_id": column,
-                },
-                "background": "none",
-                "borderRadius": "4px",
-                "backgroundSize": "100% 70%",
-                "backgroundRepeat": "no-repeat",
-                "backgroundPosition": "center",
-                "paddingBottom": "4px",
-                "paddingTop": "4px",
-            }
+            style = progress_style(value, 0, "transparent")
 
         styles.append(style)
         style_cache[value] = True
@@ -215,13 +265,27 @@ def data_bars(df, column, source_values=None):
     return styles
 
 
-def discrete_background_color_bins(
-    df, column, n_bins=10, positive_is_red=False, mid=0, source_values=None
+def _discrete_background_color_bins_with_style(
+    df,
+    column,
+    n_bins=10,
+    positive_is_red=False,
+    mid=0,
+    source_values=None,
+    *,
+    visual="heatmap",
+    stripe_width_px=3,
+    min_mix_pct=10,
+    max_mix_pct=58,
+    cell_padding_px=2,
+    line_width_px=2,
+    line_width_pct=80,
 ):
     """
-    使用CSS变量和透明度的版本，更好地适应暗黑模式
-    修正：正负值区间分开计算，正值用mid到正值最大值，负值用负值最小值到mid
-    mid: 渐变中心值，默认0，可设置为1或其它
+    按数值区间生成主题自适应热力色、左侧色带或底部细色线。
+    正负值区间分别围绕 mid 计算；heatmap 模式使用 min_mix_pct 到
+    max_mix_pct 的透明度范围，减少整格色块过重的问题。
+    mid: 渐变中心值，默认0，可设置为1或其它。
     """
     if column not in df.columns:
         return []
@@ -237,16 +301,29 @@ def discrete_background_color_bins(
 
     styles = []
 
-    # 零值或 mid 值透明
-    styles.append(
-        {
-            "if": {
-                "filter_query": "{{{}}} = {}".format(column, mid),
-                "column_id": column,
-            },
-            "background": "transparent",
-        }
-    )
+    # 零值或 mid 值透明；指标线模式下数值左对齐。
+    mid_style = {
+        "if": {
+            "filter_query": "{{{}}} = {}".format(column, mid),
+            "column_id": column,
+        },
+        "background": "transparent",
+    }
+    if visual == "left-stripe":
+        mid_style.update(
+            {
+                "textAlign": "right",
+                "paddingRight": f"{cell_padding_px:g}px",
+            }
+        )
+    elif visual == "bottom-line":
+        mid_style.update(
+            {
+                "textAlign": "left",
+                "paddingLeft": f"{cell_padding_px:g}px",
+            }
+        )
+    styles.append(mid_style)
 
     # 根据参数决定正/负的基础颜色（使用 CSS 变量，保留可覆盖性）
     if positive_is_red:
@@ -272,15 +349,50 @@ def discrete_background_color_bins(
             )
             base_color = neg_base
 
-        return {
+        style = {
             "if": {
                 "filter_query": "{{{col}}} >= {low} && {{{col}}} <= {high} && {{{col}}} != {mid}".format(
                     col=column, low=repr(low), high=repr(high), mid=repr(mid)
                 ),
                 "column_id": column,
             },
-            "background": f"color-mix(in srgb, {base_color} {intensity * 100}%, transparent)",
         }
+        mix_pct = min_mix_pct + (max_mix_pct - min_mix_pct) * intensity
+        mixed_color = f"color-mix(in srgb, {base_color} {mix_pct:.1f}%, transparent)"
+        if visual == "left-stripe":
+            style.update(
+                {
+                    # An inset shadow produces a fixed-width, full-cell-height
+                    # strip without a proportional fill or a spatial gradient.
+                    "boxShadow": f"inset {stripe_width_px}px 0 0 0 {mixed_color}",
+                    "textAlign": "right",
+                    "paddingRight": f"{cell_padding_px:g}px",
+                }
+            )
+        elif visual == "bottom-line":
+            style.update(
+                {
+                    # Draw a centered, solid-color underline narrower than
+                    # the cell so adjacent cells remain visually separated.
+                    "background": (
+                        "linear-gradient(90deg, {color} 0, {color} 100%) "
+                        "left bottom / {width_pct:g}% {line_width:g}px no-repeat"
+                    ).format(
+                        color=mixed_color,
+                        width_pct=line_width_pct,
+                        line_width=line_width_px,
+                    ),
+                    "textAlign": "left",
+                    "paddingLeft": f"{cell_padding_px:g}px",
+                }
+            )
+        elif visual == "heatmap":
+            style["backgroundColor"] = mixed_color
+        else:
+            raise ValueError(
+                "visual must be 'heatmap', 'left-stripe', or 'bottom-line'"
+            )
+        return style
 
     # 负值区间：从vmin到mid
     if vmin < mid:
@@ -295,6 +407,20 @@ def discrete_background_color_bins(
             styles.append(get_color_style((pos_edges[i], pos_edges[i + 1]), True))
 
     return styles
+
+
+def discrete_background_color_bins(
+    df, column, n_bins=10, positive_is_red=False, mid=0, source_values=None
+):
+    """Generate the default heatmap styles with the original public API."""
+    return _discrete_background_color_bins_with_style(
+        df,
+        column,
+        n_bins=n_bins,
+        positive_is_red=positive_is_red,
+        mid=mid,
+        source_values=source_values,
+    )
 
 
 def make_dash_format_table(df, cols_format, market, trade_date, table_name):
@@ -689,26 +815,70 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
         + highlight_conditional
     )
 
+    ratio_progress_columns = {
+        "LRATIO",
+        "PNL RATIO",
+        "WIN RATE",
+        "TOTAL PNL RATIO",
+    }
+    ratio_bar_options = _RATIO_BAR_STYLE
+    min_cell_extra_width_px = (
+        ratio_bar_options["track_start_px"]
+        + ratio_bar_options["min_track_width_px"]
+        + ratio_bar_options["cell_padding_px"]
+        + ratio_bar_options["label_gap_px"]
+    )
+    style_header_conditional = []
+
     for col in original_df.columns:
         if (
             col in cols_format
             and len(cols_format[col]) > 1
             and cols_format[col][0] == "ratio"
             and cols_format[col][1] == "format"
+            and col in ratio_progress_columns
         ):
-            style_data_conditional.extend(data_bars(df, col, original_df.get(col)))
+            label_width_em = _numeric_label_width_em(original_df.get(col), "ratio")
+            style_header_conditional.append(
+                {
+                    "if": {"column_id": col},
+                    "minWidth": (
+                        "max(112px, calc({label_width:.3f}em + {extra_width:g}px))"
+                    ).format(
+                        label_width=label_width_em,
+                        extra_width=min_cell_extra_width_px,
+                    ),
+                }
+            )
+            style_data_conditional.extend(
+                data_bars(
+                    df,
+                    col,
+                    original_df.get(col),
+                )
+            )
+
+    bottom_line_options = {
+        "visual": "bottom-line",
+        "line_width_px": 2,
+        "line_width_pct": 80,
+        "min_mix_pct": 24,
+        "max_mix_pct": 88,
+        "cell_padding_px": 2,
+    }
 
     # 在这里把按值分段着色应用到需要的列
     gradient_target_cols = ["ERP"]
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
-            discrete_background_color_bins(
+            _discrete_background_color_bins_with_style(
                 df,
                 col,
                 n_bins=10,
                 positive_is_red=True,
                 source_values=original_df.get(col),
+                **bottom_line_options,
             )
         )
 
@@ -717,13 +887,14 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
-            discrete_background_color_bins(
+            _discrete_background_color_bins_with_style(
                 df,
                 col,
                 n_bins=10,
                 positive_is_red=True,
                 mid=1,
                 source_values=original_df.get(col),
+                **bottom_line_options,
             )
         )
 
@@ -731,13 +902,14 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
-            discrete_background_color_bins(
+            _discrete_background_color_bins_with_style(
                 df,
                 col,
                 n_bins=10,
                 positive_is_red=True,
                 mid=0,
                 source_values=original_df.get(col),
+                **bottom_line_options,
             )
         )
 
@@ -745,12 +917,13 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
-            discrete_background_color_bins(
+            _discrete_background_color_bins_with_style(
                 df,
                 col,
                 n_bins=10,
                 positive_is_red=True,
                 source_values=original_df.get(col),
+                **bottom_line_options,
             )
         )
 
@@ -758,12 +931,13 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
-            discrete_background_color_bins(
+            _discrete_background_color_bins_with_style(
                 df,
                 col,
                 n_bins=10,
                 positive_is_red=False,
                 source_values=original_df.get(col),
+                **bottom_line_options,
             )
         )
 
@@ -830,13 +1004,14 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                             "fontWeight": "bold",
                             "white-space": "normal",
                         },
+                        style_header_conditional=style_header_conditional,
                         style_cell={
                             "textAlign": "left",
                             "overflow": "hidden",
                             "textOverflow": "ellipsis",
                             "backgroundColor": "transparent",
                             "margin": "0px",
-                            "padding": "0px",
+                            "padding": "0px 2px",
                         },
                         style_data={
                             "backgroundColor": "transparent",

@@ -393,8 +393,8 @@ td, th {
   padding: 0 2px !important;
 }
 
-td {
-  padding: 0px 0px;
+td:not(.dash-cell), th:not(.dash-cell) {
+  padding: 0 2px !important;
 }
 
 tr:nth-child(even) { background-color: #f0f0f0; }
