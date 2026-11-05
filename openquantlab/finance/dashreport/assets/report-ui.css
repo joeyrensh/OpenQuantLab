@@ -2,6 +2,7 @@
    Keep chart sizing and the light/dark theme selection in their existing owners. */
 :root {
   --report-card-shadow: 0 3px 14px rgba(31, 60, 100, 0.08);
+  --progress-bar-length: 112px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -10,9 +11,17 @@
   }
 }
 
+@media (max-width: 550px) {
+  :root {
+    --progress-bar-length: 82px;
+  }
+}
+
 .header-menu-wrapper{
   box-shadow: var(--report-card-shadow);
 }
+
+
 
 /* KPI cards use the current palette; sign colors remain app-defined. */
 #page-content .subtitle {

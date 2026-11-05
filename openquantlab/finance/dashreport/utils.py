@@ -232,7 +232,7 @@ def data_bars(df, column, source_values=None):
             },
             "background": background,
             "minWidth": (
-                "max(96px, calc({label_width:.3f}em + {extra_width:g}px))"
+                "max(var(--progress-bar-length), calc({label_width:.3f}em + {extra_width:g}px))"
             ).format(
                 label_width=label_width_em,
                 extra_width=min_cell_extra_width_px,
@@ -843,7 +843,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                 {
                     "if": {"column_id": col},
                     "minWidth": (
-                        "max(112px, calc({label_width:.3f}em + {extra_width:g}px))"
+                        "max(var(--progress-bar-length), calc({label_width:.3f}em + {extra_width:g}px))"
                     ).format(
                         label_width=label_width_em,
                         extra_width=min_cell_extra_width_px,
