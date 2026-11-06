@@ -930,7 +930,7 @@ class BacktestPage:
             cols_format = {
                 "DATE": ("date", "format"),
                 "PRICE": ("float",),
-                "PNL RATIO": ("ratio",),
+                "PNL RATIO": ("ratio", "format"),
                 "VOLUME": ("float",),
                 "INDUSTRY": ("text",),
                 "PE": ("text",),
