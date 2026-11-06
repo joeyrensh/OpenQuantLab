@@ -212,6 +212,18 @@ def data_bars(df, column, source_values=None):
 
     def progress_style(value, percentage, fill_color):
         percentage = max(0.0, min(100.0, float(percentage)))
+        # DataTable compares values from its serialized row data. Use a tiny
+        # interval instead of exact float equality so harmless JSON/JS precision
+        # differences do not make the bar disappear for individual rows.
+        numeric_value = float(value)
+        tolerance = max(abs(numeric_value) * 1e-12, 1e-12)
+        value_filter = (
+            "{{{column}}} >= {lower:.17g} && {{{column}}} < {upper:.17g}"
+        ).format(
+            column=column,
+            lower=numeric_value - tolerance,
+            upper=numeric_value + tolerance,
+        )
         # The background is clipped to the content box. Its left padding creates
         # the track inset; the percentage then scales within the remaining track.
         gradient = """
@@ -238,9 +250,7 @@ def data_bars(df, column, source_values=None):
         )
         return {
             "if": {
-                "filter_query": "{{{column}}} = {value}".format(
-                    column=column, value=value
-                ),
+                "filter_query": value_filter,
                 "column_id": column,
             },
             "background": background,
