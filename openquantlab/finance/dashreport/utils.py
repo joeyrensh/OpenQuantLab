@@ -158,20 +158,42 @@ def _numeric_label_width_em(values, value_format="ratio", precision=2):
 
 
 _RATIO_BAR_STYLE = {
-    "label_gap_px": 0.5,
-    "cell_padding_px": 2,
+    "label_gap": "var(--ratio-progress-label-gap)",
+    "cell_padding_inline": "var(--ratio-progress-cell-padding-inline)",
+    "cell_padding_block": "var(--ratio-progress-cell-padding-block)",
     "track_height_px": "var(--track-height-px)",
-    "track_start_px": 2,
-    "min_track_width_px": 28,
+    "track_start": "var(--ratio-progress-track-start)",
+    "min_track_width": "var(--ratio-progress-min-track-width)",
 }
 
 
+def _ratio_bar_min_width(label_width_em):
+    """Return a CSS-sized minimum width while keeping visual tuning in CSS."""
+    style = _RATIO_BAR_STYLE
+    return (
+        "max(var(--progress-bar-length), calc({label_width:.3f}em + "
+        "{track_start} + {min_track_width} + {label_gap} + "
+        "{cell_padding_inline}))"
+    ).format(
+        label_width=label_width_em,
+        track_start=style["track_start"],
+        min_track_width=style["min_track_width"],
+        label_gap=style["label_gap"],
+        cell_padding_inline=style["cell_padding_inline"],
+    )
+
+
+def _css_length(value):
+    """Allow internal style helpers to accept either pixels or a CSS variable."""
+    return value if isinstance(value, str) else f"{value:g}px"
+
+
 def data_bars(df, column, source_values=None):
-    label_gap_px = _RATIO_BAR_STYLE["label_gap_px"]
-    cell_padding_px = _RATIO_BAR_STYLE["cell_padding_px"]
+    label_gap = _RATIO_BAR_STYLE["label_gap"]
+    cell_padding_inline = _RATIO_BAR_STYLE["cell_padding_inline"]
+    cell_padding_block = _RATIO_BAR_STYLE["cell_padding_block"]
     track_height_px = _RATIO_BAR_STYLE["track_height_px"]
-    track_start_px = _RATIO_BAR_STYLE["track_start_px"]
-    min_track_width_px = _RATIO_BAR_STYLE["min_track_width_px"]
+    track_start = _RATIO_BAR_STYLE["track_start"]
 
     values = pd.to_numeric(
         df[column] if source_values is None else source_values, errors="coerce"
@@ -184,43 +206,34 @@ def data_bars(df, column, source_values=None):
     styles = []
     style_cache = {}  # 缓存样式，避免重复计算
 
-    # The full-length track stops label_gap_px before the right-aligned value.
+    # The data-dependent label width stays in Python; spacing and track geometry
+    # are CSS variables so they can be tuned without rebuilding per-column rules.
     label_width_em = _numeric_label_width_em(values, "ratio")
-    label_gap_with_padding_px = cell_padding_px + label_gap_px
-    min_cell_extra_width_px = (
-        track_start_px + min_track_width_px + label_gap_with_padding_px
-    )
 
     def progress_style(value, percentage, fill_color):
         percentage = max(0.0, min(100.0, float(percentage)))
-        # Keep the start inset while scaling the fill to the responsive track.
-        fill_end = "calc({percentage:.4f}% + {offset:.4f}px)".format(
-            percentage=percentage,
-            offset=track_start_px * (1 - percentage / 100.0),
-        )
+        # The background is clipped to the content box. Its left padding creates
+        # the track inset; the percentage then scales within the remaining track.
         gradient = """
             linear-gradient(90deg,
-                transparent 0%,
-                transparent {track_start_px}px,
-                {fill_color} {track_start_px}px,
-                {fill_color} {fill_end},
-                transparent {fill_end},
+                {fill_color} 0%,
+                {fill_color} {percentage:.4f}%,
+                transparent {percentage:.4f}%,
                 transparent 100%)
         """.format(
-            track_start_px=track_start_px,
             fill_color=fill_color,
-            fill_end=fill_end,
+            percentage=percentage,
         )
         # Put size, position, and repeat in the same shorthand. Dash's table
         # conditional styles can otherwise reset background-size after the
         # separate longhand is applied.
         background = (
             "{gradient} left center / calc(100% - {label_width:.3f}em - "
-            "{gap:g}px) {height} no-repeat"
+            "{gap}) {height} no-repeat"
         ).format(
             gradient=gradient.strip(),
             label_width=label_width_em,
-            gap=label_gap_with_padding_px,
+            gap=label_gap,
             height=track_height_px,
         )
         return {
@@ -231,17 +244,15 @@ def data_bars(df, column, source_values=None):
                 "column_id": column,
             },
             "background": background,
-            "minWidth": (
-                "max(var(--progress-bar-length), calc({label_width:.3f}em + {extra_width:g}px))"
-            ).format(
-                label_width=label_width_em,
-                extra_width=min_cell_extra_width_px,
-            ),
+            "backgroundOrigin": "content-box",
+            "backgroundClip": "content-box",
+            "minWidth": _ratio_bar_min_width(label_width_em),
             "borderRadius": "0",
             "textAlign": "right",
-            "paddingRight": f"{cell_padding_px:g}px",
-            "paddingBottom": "4px",
-            "paddingTop": "4px",
+            "paddingLeft": track_start,
+            "paddingRight": cell_padding_inline,
+            "paddingBottom": cell_padding_block,
+            "paddingTop": cell_padding_block,
         }
 
     for value in values:
@@ -274,7 +285,7 @@ def _discrete_background_color_bins_with_style(
     source_values=None,
     *,
     visual="heatmap",
-    stripe_width_px=3,
+    stripe_width_px="var(--value-left-stripe-width)",
     min_mix_pct=10,
     max_mix_pct=58,
     cell_padding_px=2,
@@ -313,14 +324,14 @@ def _discrete_background_color_bins_with_style(
         mid_style.update(
             {
                 "textAlign": "right",
-                "paddingRight": f"{cell_padding_px:g}px",
+                "paddingRight": _css_length(cell_padding_px),
             }
         )
     elif visual == "bottom-line":
         mid_style.update(
             {
                 "textAlign": "left",
-                "paddingLeft": f"{cell_padding_px:g}px",
+                "paddingLeft": _css_length(cell_padding_px),
             }
         )
     styles.append(mid_style)
@@ -357,6 +368,9 @@ def _discrete_background_color_bins_with_style(
                 "column_id": column,
             },
         }
+        # The final mix percentage depends on each data bin's intensity, so this
+        # interpolation remains data-driven in Python. CSS controls the rendered
+        # line/stripe geometry and the theme-aware base colors.
         mix_pct = min_mix_pct + (max_mix_pct - min_mix_pct) * intensity
         mixed_color = f"color-mix(in srgb, {base_color} {mix_pct:.1f}%, transparent)"
         if visual == "left-stripe":
@@ -364,9 +378,11 @@ def _discrete_background_color_bins_with_style(
                 {
                     # An inset shadow produces a fixed-width, full-cell-height
                     # strip without a proportional fill or a spatial gradient.
-                    "boxShadow": f"inset {stripe_width_px}px 0 0 0 {mixed_color}",
+                    "boxShadow": (
+                        f"inset {_css_length(stripe_width_px)} 0 0 0 {mixed_color}"
+                    ),
                     "textAlign": "right",
-                    "paddingRight": f"{cell_padding_px:g}px",
+                    "paddingRight": _css_length(cell_padding_px),
                 }
             )
         elif visual == "bottom-line":
@@ -376,14 +392,18 @@ def _discrete_background_color_bins_with_style(
                     # the cell so adjacent cells remain visually separated.
                     "background": (
                         "linear-gradient(90deg, {color} 0, {color} 100%) "
-                        "left bottom / {width_pct:g}% {line_width:g}px no-repeat"
+                        "left bottom / {width_pct} {line_width} no-repeat"
                     ).format(
                         color=mixed_color,
-                        width_pct=line_width_pct,
-                        line_width=line_width_px,
+                        width_pct=(
+                            line_width_pct
+                            if isinstance(line_width_pct, str)
+                            else f"{line_width_pct:g}%"
+                        ),
+                        line_width=_css_length(line_width_px),
                     ),
                     "textAlign": "left",
-                    "paddingLeft": f"{cell_padding_px:g}px",
+                    "paddingLeft": _css_length(cell_padding_px),
                 }
             )
         elif visual == "heatmap":
@@ -821,13 +841,6 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
         "WIN RATE",
         "TOTAL PNL RATIO",
     }
-    ratio_bar_options = _RATIO_BAR_STYLE
-    min_cell_extra_width_px = (
-        ratio_bar_options["track_start_px"]
-        + ratio_bar_options["min_track_width_px"]
-        + ratio_bar_options["cell_padding_px"]
-        + ratio_bar_options["label_gap_px"]
-    )
     style_header_conditional = []
 
     for col in original_df.columns:
@@ -842,12 +855,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
             style_header_conditional.append(
                 {
                     "if": {"column_id": col},
-                    "minWidth": (
-                        "max(var(--progress-bar-length), calc({label_width:.3f}em + {extra_width:g}px))"
-                    ).format(
-                        label_width=label_width_em,
-                        extra_width=min_cell_extra_width_px,
-                    ),
+                    "minWidth": _ratio_bar_min_width(label_width_em),
                 }
             )
             style_data_conditional.extend(
@@ -860,11 +868,11 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
 
     bottom_line_options = {
         "visual": "bottom-line",
-        "line_width_px": 2,
-        "line_width_pct": 80,
+        "line_width_px": "var(--value-bottom-line-height)",
+        "line_width_pct": "var(--value-bottom-line-width)",
         "min_mix_pct": 24,
         "max_mix_pct": 88,
-        "cell_padding_px": 2,
+        "cell_padding_px": "var(--value-cell-inline-padding)",
     }
 
     # 在这里把按值分段着色应用到需要的列
