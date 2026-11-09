@@ -427,6 +427,10 @@ table.tiny-header tr:first-child { font-size: 8px; }
   padding: 5px 2px !important;
 }
 
+.default-table .dash-spreadsheet-inner td .dash-cell-value {
+  vertical-align: baseline !important;
+}
+
 .dash-select-header,
 .dash-select-cell {
   display: none !important;
