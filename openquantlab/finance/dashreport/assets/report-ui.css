@@ -3,13 +3,13 @@
 :root {
   --report-card-shadow: 0 3px 14px rgba(31, 60, 100, 0.08);
   --progress-bar-length: 112px;
-  --track-height-px: 50%;
+  --track-height-px: 8px;
   --ratio-progress-label-gap: 1px;
   --ratio-progress-cell-padding-inline: 2px;
   --ratio-progress-cell-padding-block: 4px;
   --ratio-progress-track-start: 2px;
   --ratio-progress-min-track-width: 28px;
-  --value-bottom-line-height: 10%;
+  --value-bottom-line-height: 4px;
   --value-bottom-line-width: 80%;
   --value-cell-inline-padding: 2px;
   --value-left-stripe-width: 3px;
@@ -24,7 +24,7 @@
 @media (max-width: 550px) {
   :root {
     --progress-bar-length: 82px;
-    --track-height-px: 50%;
+    --track-height-px: 6px;
   }
 }
 
