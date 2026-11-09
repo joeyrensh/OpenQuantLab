@@ -182,6 +182,11 @@
   margin-bottom: 14px;
 }
 
+#page-content .sub_page > .twelve.columns ~ .twelve.columns {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
 #page-content .sub_page > .annual-return-card {
   padding-bottom: 4px;
 }
