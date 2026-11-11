@@ -851,6 +851,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
         {
             "if": {"column_id": col["id"]},
             "fontFamily": "var(--font-family-number)",
+            "fontWeight": "var(--font-weight-number)",
         }
         for col in columns
         if col["type"] == "numeric"

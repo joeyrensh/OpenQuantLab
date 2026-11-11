@@ -32,6 +32,7 @@
   /* 字体 */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-family-number: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  --font-weight-number: 400;  
 }
 
 /* --- 深色主题 --- */
@@ -616,7 +617,7 @@ table.tiny-header tr:first-child { font-size: 8px; }
 
 .kpi-pct-neutral {
     color: var(--text-color);
-    font-weight: 300;
+    font-weight: 500;
 }
 
 /* --- 回测页面按钮/摘要/文字 */

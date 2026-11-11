@@ -532,7 +532,7 @@
     grid-row: 1;
     justify-self: end;
     align-self: center;
-    opacity: 0.62;
+    /* opacity: 0.62; */
   }
 
   #page-content .sub_page > .row > .six.columns + .six.columns {
