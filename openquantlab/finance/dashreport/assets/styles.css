@@ -601,6 +601,7 @@ table.tiny-header tr:first-child { font-size: 8px; }
 .kpi-pct {
     font-size: 1.5rem;
     font-weight: 500;
+    font-family: var(--font-family-number) !important;
 }
 
 .kpi-pct-up {

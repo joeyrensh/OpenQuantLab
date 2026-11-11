@@ -13,6 +13,7 @@
   --value-bottom-line-width: 80%;
   --value-cell-inline-padding: 2px;
   --value-left-stripe-width: 3px;
+  --font-family-number: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -456,6 +457,7 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  font-family: var(--font-family-number);
 }
 
 @media (max-width: 767px) {
