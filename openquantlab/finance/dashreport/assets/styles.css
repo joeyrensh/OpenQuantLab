@@ -30,7 +30,8 @@
   --blue-line-color: #1E56A0;
 
   /* 字体 */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; */
+  --font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
 }
 
 /* --- 深色主题 --- */
@@ -741,6 +742,10 @@ legend {
 .chart-container .js-plotly-plot .plotly text{
   font-size: clamp(1.05rem, 2.5cqw, 1.5rem) !important;
   font-weight: 300 !important;
+}
+
+.chart-container .js-plotly-plot .plotly .legend text.legendtext {
+    letter-spacing: -0.1em !important;
 }
 
 #backtest-kline-charts .plotly .hoverlayer text {
