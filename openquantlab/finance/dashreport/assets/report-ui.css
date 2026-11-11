@@ -592,3 +592,13 @@
     -webkit-text-fill-color: #fff !important;
   }
 }
+
+#page-content .default-table .dash-spreadsheet-inner td img {
+    max-height: 32px !important;
+}
+
+@media (max-width: 550px) {
+    #page-content .default-table .dash-spreadsheet-inner td img {
+        max-height: 24px !important;
+    }
+}

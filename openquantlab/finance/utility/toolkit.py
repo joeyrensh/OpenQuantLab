@@ -634,7 +634,7 @@ class ToolKit:
             y = np.asarray(y)
             ymin, ymax = np.min(y), np.max(y)
             span = max(ymax - ymin, 1e-3)
-            pad = span * 0.15
+            pad = span * 0.08
             ax.set_ylim(ymin - pad, ymax + pad)
 
         set_ylim(ax1, datasets[0])
