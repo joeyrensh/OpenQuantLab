@@ -1812,12 +1812,12 @@ input[type="radio"]:checked::before {
   
   .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td[data-dash-column='NAME'],
   .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td[data-dash-column='IND'] {
-    min-width: 20vw;
+    min-width: 23vw;
   }
   
   .cn_table .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td[data-dash-column='NAME'],
   .cn_table .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner td[data-dash-column='IND'] {
-    min-width: 15vw;
+    min-width: 20vw;
   }
   
   .navbar {
