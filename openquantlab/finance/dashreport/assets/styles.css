@@ -31,6 +31,7 @@
 
   /* 字体 */
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-number: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 /* --- 深色主题 --- */
@@ -443,7 +444,7 @@ table.tiny-header tr:first-child { font-size: 8px; }
 .dash-table-container .dash-spreadsheet-container .dash-spreadsheet-inner * {
   background: none;
   --hover: #d3d3d325;
-  font-family: var(--font-family) !important;
+  font-family: var(--font-family);
 }
 
 /* 列宽自定义细化 */
@@ -590,6 +591,7 @@ table.tiny-header tr:first-child { font-size: 8px; }
     color: var(--text-color);
     margin-bottom: 10px;
     font-size: 1.8rem;
+    font-family: var(--font-family-number) !important;
 }
 
 .kpi-date {
@@ -754,6 +756,10 @@ legend {
 .chart-container .plotly .table .column-block[id^="cells"] .column-cell:first-of-type text {
   font-size: clamp(1.3rem, 2.5cqw, 1.9rem) !important;
   font-weight: bold !important;
+}
+
+.chart-container .plotly .table .column-block[id^="cells"] .column-cell text {
+  font-family: var(--font-family-number) !important;
 }
 
 #us-annual-return-light,

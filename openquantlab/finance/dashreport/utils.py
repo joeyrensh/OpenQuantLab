@@ -845,6 +845,18 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
         + highlight_conditional
     )
 
+    # Keep numeric table values on the shared typography tokens so their face,
+    # size, and weight can be tuned in CSS without affecting text columns.
+    numeric_cell_styles = [
+        {
+            "if": {"column_id": col["id"]},
+            "fontFamily": "var(--font-family-number)",
+        }
+        for col in columns
+        if col["type"] == "numeric"
+    ]
+    style_data_conditional = numeric_cell_styles + style_data_conditional
+
     ratio_progress_columns = {
         "LRATIO",
         "PNL RATIO",

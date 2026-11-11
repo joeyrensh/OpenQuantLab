@@ -285,6 +285,7 @@
 
 #page-content .default-table .dash-spreadsheet-inner td .dash-cell-value {
   color: inherit !important;
+  font-family: inherit !important;
 }
 
 #page-content .default-table .dash-spreadsheet-inner tr:hover td {
