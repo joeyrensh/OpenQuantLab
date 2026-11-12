@@ -498,7 +498,7 @@ table.tiny-header tr:first-child { font-size: 8px; }
 }
 
 .default-table .dash-spreadsheet-container .dash-spreadsheet-inner .column-header-name {
-  font-weight: 600 !important;
+  font-weight: 300 !important;
   font-family: var(--font-family) !important;
 }
 
@@ -897,6 +897,7 @@ a:active { color: var(--text-color); text-decoration: underline; }
   color: var(--text-color) !important;
   border: 1px solid var(--gridcolor) !important;
   padding: 6px 2px !important;
+  font-size: 1.2rem;
 }
 
 #full-view-link {
@@ -1197,6 +1198,7 @@ a:active { color: var(--text-color); text-decoration: underline; }
     text-align: left !important;
     padding: 0px 2px !important;
     white-space: normal !important;
+    font-size: 1.2rem;
 }
 
 .symbol_summary_box table th {
@@ -1330,7 +1332,7 @@ a:active { color: var(--text-color); text-decoration: underline; }
 }
 
 .l1_label { font-weight: 600; }
-.l2_label { margin-bottom: 2px; font-weight: 300;}
+.l2_label { margin-bottom: 2px; font-weight: 300; font-size: 1.2rem;}
 .row:has(.l2_label):first-of-type { 
   margin-top: 10px; 
 }
@@ -1728,6 +1730,7 @@ input[type="radio"]:checked::before {
   .custom-input{
     height: 35px !important;
     line-height: 35px !important;
+    font-size: 0.95rem !important;
   }
   .weight-slider-primary .rc-slider-mark-text {
     font-size : 0.9rem;
@@ -1981,6 +1984,13 @@ input[type="radio"]:checked::before {
       margin-bottom: 0px;
 
   }  
+
+  .symbol_summary_box table th,
+  .symbol_summary_box table td {
+      font-size: 0.95rem;
+  }  
+
+  .l2_label {font-size: 0.95rem;}
 }
 
 
