@@ -184,7 +184,7 @@ h1, h5, h6 {
 }
 
 h5 { font-size: 2rem; }
-h6 { font-size: 1.4rem; }
+h6 { font-size: 1.8rem; }
 
 .main-title {
   position: relative;
@@ -1663,7 +1663,7 @@ input[type="radio"]:checked::before {
     margin-left: 25px;
     font-size: 1.4rem;
   }
-  h6 { font-size: 1.4rem; }
+  h6 { font-size: 1.5rem; }
   
   .header-right-action  {
     top: 25px;
@@ -1902,7 +1902,7 @@ input[type="radio"]:checked::before {
   }
   
   h5 { font-size: 1.5rem; }
-  h6 { font-size: 1.1rem; }
+  h6 { font-size: 1.5rem; }
   
   .main-title {
     width: 70%;
