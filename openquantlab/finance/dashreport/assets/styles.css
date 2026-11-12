@@ -15,10 +15,11 @@
   
   /* 通用样式 */
   --background-color: #fff;
-  --text-color: rgba(0, 0, 0, 0.9);
+  --text-color: #424242;
+  --header-color: #2e2e2e;
   --login-box-shadow-color: rgb(0 0 0 / 20%);
-  --subtitle-color: rgba(0, 0, 0, 0.9);
-  --a-visited-color: rgba(0, 0, 0, 0.9);
+  --subtitle-color: var(--header-color);
+  --a-visited-color: var(--header-color);
   --learn-more-button-color: rgba(0, 0, 0, 0.9);
   --dash-table-border-color: rgba(211, 211, 211, 0.6);
   --flag-color: rgba(231, 127, 63, 0.97);
@@ -48,10 +49,11 @@
     
     /* 通用样式 */
     --background-color: #12151a;
-    --text-color: rgba(255, 255, 255, 0.9);
+    --text-color: #b8b8b8;
+    --header-color: #828282;
     --login-box-shadow-color: #607D8B;
-    --subtitle-color: rgba(255, 255, 255, 0.9);
-    --a-visited-color: rgba(255, 255, 255, 0.7);
+    --subtitle-color: var(--header-color);
+    --a-visited-color: var(--header-color);
     --learn-more-button-color: #9fa6b7;
     --dash-table-border-color: rgba(255, 255, 255, 0.2);
     --flag-color: rgba(231, 127, 63, 0.97);
@@ -301,9 +303,9 @@ li::before {
 
 .all-tabs .tab.active .menu-name {
    font-weight: 600;
-   border-bottom: 2px solid var(--text-color) !important;
+   border-bottom: 2px solid var(--header-color) !important;
    font-size: 1.8rem;
-   color: var(--text-color) !important;
+   color: var(--header-color) !important;
 }
 
 .tab .icon {

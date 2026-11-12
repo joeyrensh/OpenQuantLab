@@ -239,7 +239,7 @@
   border: 0 !important;
   border-bottom: 1px solid var(--gridcolor) !important;
   background: var(--kpi-background) !important;
-  color: var(--text-color) !important;
+  color: var(--header-color) !important;
   vertical-align: middle !important;
 }
 
@@ -576,8 +576,8 @@
   #page-content .default-table .dash-spreadsheet-inner th *,
   #page-content .default-table .dash-filter input,
   #page-content .default-table .dash-filter input::placeholder {
-    color: #fff !important;
-    -webkit-text-fill-color: #fff !important;
+    color: var(--header-color) !important;
+    -webkit-text-fill-color: var(--header-color) !important;
   }
 
   #page-content .dash-table-container .current-page-container,
