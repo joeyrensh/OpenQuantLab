@@ -559,9 +559,7 @@ def build_stock_filter_card(cfg):
                     ),
                     _weight_current_value(
                         f"slider_stk_{k}",
-                        cfg.get("stock_filter", {}).get(
-                            k, 0.95 if is_quantile else 0
-                        ),
+                        cfg.get("stock_filter", {}).get(k, 0.95 if is_quantile else 0),
                         step_v,
                     ),
                 ],
@@ -1335,7 +1333,7 @@ def create_layout(app: Dash):
         [
             html.H6("Weight Configuration", className="subtitle padded"),
             html.P(
-                "Drag and drop to adjust scoring weights freely. Click [Save to Json] or [Save as Default].",
+                "To adjust scoring weights freely. Click [Save to Json] or [Save as Default].",
                 className="text-secondary text-center mb-4 small page-sub-desc",
             ),
         ]

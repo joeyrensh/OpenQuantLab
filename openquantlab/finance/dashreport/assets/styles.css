@@ -1370,7 +1370,7 @@ input[type="radio"]:checked::before {
 }
 
 /* --- 页面描述、配置与预览层 --- */
-.page-sub-desc { color: #6c757d; margin-bottom: 5px; }
+.page-sub-desc { color: #6c757d; margin-bottom: 5px; font-size: 1.2rem;}
 .card-header-title { color: #212529; }
 .preview-header { color: #212529; }
 
@@ -1991,6 +1991,8 @@ input[type="radio"]:checked::before {
   }  
 
   .l2_label {font-size: 0.95rem;}
+
+  .page-sub-desc {font-size: 0.95rem;}
 }
 
 
