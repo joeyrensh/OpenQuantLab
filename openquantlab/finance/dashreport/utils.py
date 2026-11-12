@@ -1032,7 +1032,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
                             "top": "0",
                             "backgroundColor": "transparent",
                             "zIndex": 10,
-                            "fontWeight": "bold",
+                            "fontWeight": 700,
                             "white-space": "normal",
                         },
                         style_header_conditional=style_header_conditional,

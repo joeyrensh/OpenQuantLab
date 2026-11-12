@@ -498,7 +498,7 @@ table.tiny-header tr:first-child { font-size: 8px; }
 }
 
 .default-table .dash-spreadsheet-container .dash-spreadsheet-inner .column-header-name {
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   font-family: var(--font-family) !important;
 }
 
@@ -603,7 +603,7 @@ table.tiny-header tr:first-child { font-size: 8px; }
 
 .kpi-pct {
     font-size: 1.5rem;
-    font-weight: 500;
+    font-weight: 700;
     font-family: var(--font-family-number) !important;
 }
 
@@ -634,7 +634,7 @@ label,
 legend {
   display: block;
   margin-bottom: 1px;
-  font-weight: 300;
+  font-weight: 600;
 }
 .backtest_fst_label{
   margin-left: 2px;
@@ -759,7 +759,7 @@ legend {
 
 .chart-container .plotly .table .column-block[id^="cells"] .column-cell:first-of-type text {
   font-size: clamp(1.3rem, 2.5cqw, 1.9rem) !important;
-  font-weight: bold !important;
+  font-weight: 900 !important;
 }
 
 .chart-container .plotly .table .column-block[id^="cells"] .column-cell text {
