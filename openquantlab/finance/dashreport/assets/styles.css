@@ -634,7 +634,7 @@ label,
 legend {
   display: block;
   margin-bottom: 1px;
-  font-weight: 600;
+  font-weight: 300;
 }
 .backtest_fst_label{
   margin-left: 2px;
@@ -642,6 +642,7 @@ legend {
 }
 .label_text{
   /* color: #666; */
+  font-weight: 600;
 }
 
 /* ---settings.pycss定义 */
@@ -1328,8 +1329,8 @@ a:active { color: var(--text-color); text-decoration: underline; }
     text-transform: none;
 }
 
-.l1_label { font-weight: 500; }
-.l2_label { margin-bottom: 2px; }
+.l1_label { font-weight: 600; }
+.l2_label { margin-bottom: 2px; font-weight: 300;}
 .row:has(.l2_label):first-of-type { 
   margin-top: 10px; 
 }
