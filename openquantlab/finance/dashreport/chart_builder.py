@@ -1802,11 +1802,11 @@ class ChartBuilder:
         fig.add_annotation(
             text="Forecast · 20 weekdays",
             x=0.84,
-            y=0.985,
+            y=0,
             xref="paper",
             yref="paper",
             xanchor="center",
-            yanchor="top",
+            yanchor="bottom",
             showarrow=False,
         )
 
