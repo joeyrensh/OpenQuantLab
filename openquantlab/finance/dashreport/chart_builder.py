@@ -856,7 +856,7 @@ class ChartBuilder:
         trend_metric="success_rate",  # 可选: 'success_rate', 'symbol_ratio'
         future_pnl_col="ret_5d_future_avg",  # 当 bar_metric 为 'future_pnl' 时使用
         success_rate_col="success_rate_5d",  # 当 trend_metric 为 'success_rate' 时使用
-        use_ema=True,  # 是否对 trend_metric 使用 EMA 平滑曲线
+        use_ema=False,  # 是否对 trend_metric 使用 EMA 平滑曲线
         show_max_annotation=True,  # 是否开启最大值标注
         collision_date_days=15,  # 碰撞判断：相近天数阈值
         collision_val_pct=0.05,  # 碰撞判断：数值差距百分比阈值
