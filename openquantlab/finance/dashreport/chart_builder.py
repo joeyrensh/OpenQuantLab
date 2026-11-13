@@ -1465,10 +1465,10 @@ class ChartBuilder:
             yaxis=yaxis_config,
             yaxis2=yaxis2_config,
             legend=dict(
-                orientation="v",
-                x=0,
+                orientation="h",
+                x=0.5,
                 y=1,
-                xanchor="left",
+                xanchor="center",
                 yanchor="top",
                 font=dict(
                     family=self.font_family,
@@ -2011,9 +2011,9 @@ class ChartBuilder:
             legend_title_text=None,
             legend=dict(
                 orientation="v",
-                x=0.01,
+                x=0,
                 xanchor="left",
-                y=0.98,
+                y=1,
                 yanchor="top",
                 font=dict(size=font_size, color=text_color, family=self.font_family),
                 bgcolor=cfg["legend-bg-color"],
