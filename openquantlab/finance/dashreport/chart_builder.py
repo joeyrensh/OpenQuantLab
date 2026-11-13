@@ -1035,7 +1035,7 @@ class ChartBuilder:
             y1_range, y1_dtick, y1_autorange = None, None, True
 
         # =========================
-        # 3. 策略分组与 Core 策略计算
+        # 3. 策略顺序与默认显示策略
         # =========================
         strategy_order = [
             "多头排列",
@@ -1047,58 +1047,6 @@ class ChartBuilder:
             "红三兵",
             "连续上涨",
         ]
-
-        group_long = ["多头排列", "突破年线"]
-        group_mid = ["均线金叉", "均线收敛", "突破半年线"]
-        group_short = ["成交量放大", "红三兵", "连续上涨"]
-
-        core_strategies = []
-        compare_col = "trend_val" if "trend_val" in df.columns else target_col
-
-        if not df.empty and compare_col in df.columns:
-            max_date = df["date"].max()
-            cutoff_date = max_date - pd.Timedelta(days=1)
-
-            df_recent = df[
-                (df["date"] >= cutoff_date) & (df[compare_col].notna())
-            ].copy()
-
-            if not df_recent.empty:
-                df_latest_in_window = (
-                    df_recent.sort_values("date")
-                    .groupby("strategy")
-                    .last()
-                    .reset_index()
-                )
-            else:
-                df_latest_in_window = pd.DataFrame(columns=["strategy", compare_col])
-
-            strat_score_map = {}
-            for strat in strategy_order:
-                match = df_latest_in_window[df_latest_in_window["strategy"] == strat]
-                if not match.empty:
-                    val = match.iloc[0][compare_col]
-                    try:
-                        strat_score_map[strat] = float(val) if pd.notna(val) else 0.0
-                    except (ValueError, TypeError):
-                        strat_score_map[strat] = 0.0
-                else:
-                    strat_score_map[strat] = 0.0
-
-            def get_best_strat_in_group(group_list):
-                sorted_group = sorted(
-                    group_list, key=lambda s: strat_score_map.get(s, 0.0), reverse=True
-                )
-                return sorted_group[0]
-
-            best_long = get_best_strat_in_group(group_long)
-            best_mid = get_best_strat_in_group(group_mid)
-            best_short = get_best_strat_in_group(group_short)
-
-            core_strategies = [best_long, best_mid, best_short]
-
-        if not core_strategies:
-            core_strategies = [group_long[0], group_mid[0], group_short[0]]
 
         line_styles = [
             {"dash": "solid", "width": 1.5},
@@ -1121,83 +1069,34 @@ class ChartBuilder:
         }
 
         valid_strategies = [s for s in strategy_order if s in df["strategy"].values]
+        default_strategy = valid_strategies[0] if valid_strategies else None
         df_sorted = df[df["strategy"].isin(valid_strategies)].copy()
 
         xmin = pd.to_datetime(df["date"].min())
         xmax = pd.to_datetime(df["date"].max())
 
         # =========================================================
-        # 4. 预先计算碰撞筛选（分别处理 Trend 和 Bar）
+        # 4. 为每个有效策略保留最大值标注
         # =========================================================
         allowed_trend_annotation_strats = set()
         allowed_bar_annotation_strats = set()
 
         if show_max_annotation:
-            # A. 收集所有 Valid 策略的 Trend Line Max 点候选
-            trend_candidates = []
-            for strat in valid_strategies:
-                s_data = df_sorted[df_sorted["strategy"] == strat].dropna(
-                    subset=["trend_val"]
-                )
-                if not s_data.empty:
-                    m_row = s_data.loc[s_data["trend_val"].idxmax()]
-                    trend_candidates.append(
-                        {"strat": strat, "x": m_row["date"], "y": m_row["trend_val"]}
-                    )
-
-            allowed_trend_annotation_strats = self._filter_overlapping_maxima(
-                trend_candidates,
-                date_threshold_days=collision_date_days,
-                val_threshold_pct=collision_val_pct,
-                val_threshold_abs=0.08,
-            )
-
-            # B. 收集所有 Valid 策略的 Bar 极值点候选（支持正数最大 & 负数最小）
+            # Keep all strategies so a nearby maximum cannot suppress another label.
+            allowed_trend_annotation_strats = set(valid_strategies)
             if show_bar:
-                bar_candidates = []
-                for strat in valid_strategies:
-                    s_data = df_sorted[df_sorted["strategy"] == strat]
-                    if not s_data.empty:
-                        pos_data = s_data[s_data["bar_pos"] > 0]
-                        if not pos_data.empty:
-                            m_row = pos_data.loc[pos_data["bar_pos"].idxmax()]
-                            bar_candidates.append(
-                                {
-                                    "strat": strat,
-                                    "x": m_row["date"],
-                                    "y": m_row["bar_pos"],
-                                }
-                            )
-                        else:
-                            neg_data = s_data[s_data["bar_neg"] < 0]
-                            if not neg_data.empty:
-                                m_row = neg_data.loc[neg_data["bar_neg"].idxmin()]
-                                bar_candidates.append(
-                                    {
-                                        "strat": strat,
-                                        "x": m_row["date"],
-                                        "y": m_row["bar_neg"],
-                                    }
-                                )
-
-                allowed_bar_annotation_strats = self._filter_overlapping_maxima(
-                    bar_candidates,
-                    date_threshold_days=collision_date_days,
-                    val_threshold_pct=collision_val_pct,
-                    val_threshold_abs=0.03,
-                )
+                allowed_bar_annotation_strats = set(valid_strategies)
 
         fig = go.Figure()
 
         # =========================================================
-        # 5. Bar Trace & 碰撞防护后的 Bar Max 标注
+        # 5. Bar Trace & 每个策略的 Bar Max 标注
         # =========================================================
         if show_bar:
             for strat in valid_strategies:
                 data = df_sorted[df_sorted["strategy"] == strat]
                 color = strategy_cfg[strat]["color"]
-                is_core = strat in core_strategies
-                visibility = True if is_core else "legendonly"
+                visibility = True if strat == default_strategy else "legendonly"
 
                 if bar_metric in ["pnl", "avg", "future_pnl"]:
                     pos = data[data["bar_pos"] > 0]
@@ -1264,60 +1163,114 @@ class ChartBuilder:
                         )
                     )
 
-                # --- Bar 标注绘制逻辑（经过碰撞过滤 + 最右侧 top left 避让）---
+                # --- 每个策略都标注 Bar 最大值和最小值 ---
                 if strat in allowed_bar_annotation_strats:
-                    pos_data = data[data["bar_pos"] > 0]
-                    if not pos_data.empty:
-                        max_bar_row = pos_data.loc[pos_data["bar_pos"].idxmax()]
-                        max_x = max_bar_row["date"]
-                        max_y = max_bar_row["bar_pos"]
-                        default_pos = "top center"
-                    else:
-                        neg_data = data[data["bar_neg"] < 0]
-                        if not neg_data.empty:
-                            max_bar_row = neg_data.loc[neg_data["bar_neg"].idxmin()]
-                            max_x = max_bar_row["date"]
-                            max_y = max_bar_row["bar_neg"]
-                            default_pos = "bottom center"
-                        else:
-                            continue
+                    bar_values = (data["bar_pos"] + data["bar_neg"]).dropna()
+                    if not bar_values.empty:
+                        for extreme, idx_func, default_pos in [
+                            ("max", bar_values.idxmax, "top center"),
+                            ("min", bar_values.idxmin, "bottom center"),
+                        ]:
+                            row = data.loc[idx_func()]
+                            x_value = row["date"]
+                            y_value = bar_values.loc[row.name]
+                            smart_pos = self._get_smart_textposition(
+                                x_value, xmin, xmax, default_pos=default_pos
+                            )
+                            val_str = (
+                                f"{y_value:+.1%}"
+                                if is_ratio_metric
+                                else f"{y_value:,.0f}"
+                            )
 
-                    # 算出的防截断方位（最右侧 10% 自动变 top left / bottom left）
-                    smart_pos = self._get_smart_textposition(
-                        max_x, xmin, xmax, default_pos=default_pos
-                    )
-                    val_str = f"{max_y:+.1%}" if is_ratio_metric else f"{max_y:,.0f}"
-
-                    fig.add_trace(
-                        go.Scatter(
-                            x=[max_x],
-                            y=[max_y],
-                            xaxis="x2",
-                            yaxis="y2",
-                            mode="text",
-                            text=[f"{val_str}"],
-                            textposition=smart_pos,
-                            textfont=dict(
-                                size=int(base_font_size),
-                                color=color,
-                                family=self.font_family,
-                            ),
-                            showlegend=False,
-                            legendgroup=strat,
-                            hoverinfo="skip",
-                            visible=visibility,
-                            cliponaxis=False,
-                        )
-                    )
+                            fig.add_trace(
+                                go.Scatter(
+                                    x=[x_value],
+                                    y=[y_value],
+                                    xaxis="x2",
+                                    yaxis="y2",
+                                    mode="text",
+                                    text=[val_str],
+                                    textposition=smart_pos,
+                                    textfont=dict(
+                                        size=int(base_font_size),
+                                        color=color,
+                                        family=self.font_family,
+                                    ),
+                                    showlegend=False,
+                                    legendgroup=strat,
+                                    hoverinfo="skip",
+                                    visible=visibility,
+                                    cliponaxis=False,
+                                )
+                            )
 
         # =========================================================
-        # 6. Trend Line & 碰撞防护后的 Trend Max 标注
+        # 6. Trend Line & 每个策略的 Trend Max 标注
         # =========================================================
+        range_fill_color = self._get_alpha_color(grid_color, alpha=0.5)
+        for strat in valid_strategies:
+            data = df_sorted[df_sorted["strategy"] == strat]
+            history = data["trend_val"].dropna()
+            if history.empty:
+                continue
+
+            visibility = True if strat == default_strategy else "legendonly"
+            history_min = history.min()
+            history_max = history.max()
+            history_mean = history.mean()
+            range_x = [xmin, xmax]
+
+            # Keep the historical range band and mean line linked to its strategy legend item.
+            fig.add_trace(
+                go.Scatter(
+                    x=range_x,
+                    y=[history_min, history_min],
+                    mode="lines",
+                    line=dict(color=grid_color, width=0),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    legendgroup=strat,
+                    visible=visibility,
+                    xaxis="x",
+                    yaxis="y1",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=range_x,
+                    y=[history_max, history_max],
+                    mode="lines",
+                    line=dict(color=grid_color, width=0),
+                    fill="tonexty",
+                    fillcolor=range_fill_color,
+                    hoverinfo="skip",
+                    showlegend=False,
+                    legendgroup=strat,
+                    visible=visibility,
+                    xaxis="x",
+                    yaxis="y1",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=range_x,
+                    y=[history_mean, history_mean],
+                    mode="lines",
+                    line=dict(color=grid_color, width=1, dash="dot"),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    legendgroup=strat,
+                    visible=visibility,
+                    xaxis="x",
+                    yaxis="y1",
+                )
+            )
+
         for strat in valid_strategies:
             data = df_sorted[df_sorted["strategy"] == strat]
             cfg_item = strategy_cfg[strat]
-            is_core = strat in core_strategies
-            visibility = True if is_core or not show_bar else "legendonly"
+            visibility = True if strat == default_strategy else "legendonly"
 
             fig.add_trace(
                 go.Scatter(
@@ -1344,56 +1297,55 @@ class ChartBuilder:
                 )
             )
 
-            # --- Trend 标注绘制逻辑（经过碰撞过滤 + 最右侧 top left 避让）---
+            # --- 每个策略都标注 Trend 最大值和最小值 ---
             if strat in allowed_trend_annotation_strats:
                 valid_trend_data = data.dropna(subset=["trend_val"])
                 if not valid_trend_data.empty:
-                    max_trend_row = valid_trend_data.loc[
-                        valid_trend_data["trend_val"].idxmax()
-                    ]
-                    max_x = max_trend_row["date"]
-                    max_y = max_trend_row["trend_val"]
-
-                    max_val_str = (
-                        f"{max_y:.1%}"
-                        if trend_metric == "success_rate" or "ratio" in trend_metric
-                        else f"{max_y:.2f}"
-                    )
-
-                    # 算出的防截断方位（最右侧 10% 自动变 top left）
-                    smart_pos = self._get_smart_textposition(
-                        max_x, xmin, xmax, default_pos="top center"
-                    )
-
-                    fig.add_trace(
-                        go.Scatter(
-                            x=[max_x],
-                            y=[max_y],
-                            xaxis="x",
-                            yaxis="y",
-                            mode="markers+text",
-                            marker=dict(
-                                symbol="circle",
-                                size=6 * unified_scale,
-                                color=cfg_item["color"],
-                            ),
-                            cliponaxis=False,
-                            text=[f"{max_val_str}"],
-                            textposition=smart_pos,
-                            textfont=dict(
-                                size=int(base_font_size),
-                                color=cfg_item["color"],
-                                family=self.font_family,
-                            ),
-                            hoverlabel=dict(
-                                bgcolor=self.darken_color(cfg_item["color"], theme)
-                            ),
-                            showlegend=False,
-                            legendgroup=strat,
-                            hoverinfo="skip",
-                            visible=visibility,
+                    for extreme, idx_func, default_pos in [
+                        ("max", valid_trend_data["trend_val"].idxmax, "top center"),
+                        ("min", valid_trend_data["trend_val"].idxmin, "bottom center"),
+                    ]:
+                        row = valid_trend_data.loc[idx_func()]
+                        x_value = row["date"]
+                        y_value = row["trend_val"]
+                        val_str = (
+                            f"{y_value:.1%}"
+                            if trend_metric == "success_rate" or "ratio" in trend_metric
+                            else f"{y_value:.2f}"
                         )
-                    )
+                        smart_pos = self._get_smart_textposition(
+                            x_value, xmin, xmax, default_pos=default_pos
+                        )
+
+                        fig.add_trace(
+                            go.Scatter(
+                                x=[x_value],
+                                y=[y_value],
+                                xaxis="x",
+                                yaxis="y",
+                                mode="markers+text",
+                                marker=dict(
+                                    symbol="circle",
+                                    size=6 * unified_scale,
+                                    color=cfg_item["color"],
+                                ),
+                                cliponaxis=False,
+                                text=[val_str],
+                                textposition=smart_pos,
+                                textfont=dict(
+                                    size=int(base_font_size),
+                                    color=cfg_item["color"],
+                                    family=self.font_family,
+                                ),
+                                hoverlabel=dict(
+                                    bgcolor=self.darken_color(cfg_item["color"], theme)
+                                ),
+                                showlegend=False,
+                                legendgroup=strat,
+                                hoverinfo="skip",
+                                visible=visibility,
+                            )
+                        )
 
         # =========================================================
         # 7. Layout 配置（维持严格贴边 r=0）
@@ -1737,86 +1689,218 @@ class ChartBuilder:
         theme="light",
         client_width=1440,
     ):
-
         cfg = self.theme_config.get(theme, self.theme_config["light"])
         text_color = cfg["text-color"]
-
-        scale, font_size = self._get_font_sizes(
+        _, font_size = self._get_font_sizes(
             client_width, base_font=12, min_scale=0.9, max_scale=1.05
         )
-        unified_scale, unified_font_size = self._get_font_sizes(
-            client_width, base_font=16, min_scale=0.65, max_scale=1.05
+
+        df = df.copy()
+        df["buy_date"] = pd.to_datetime(df["buy_date"], errors="coerce")
+        df["pnl"] = pd.to_numeric(df["pnl"], errors="coerce")
+        df = df.dropna(subset=["buy_date", "pnl", "industry"])
+
+        # Keep the existing latest-date PnL ranking unchanged.
+        latest_date = df["buy_date"].iloc[-1]
+        legend_order = (
+            df[df["buy_date"] == latest_date]
+            .sort_values(by="pnl", ascending=False)["industry"]
+            .unique()
+            .tolist()
         )
+        all_industries = df["industry"].drop_duplicates().tolist()
+        industry_order = legend_order + [
+            industry for industry in all_industries if industry not in legend_order
+        ]
+        focus_industry = industry_order[0]
+        df = df.sort_values("buy_date")
 
-        if "buy_date" in df.columns:
-            df["buy_date"] = pd.to_datetime(df["buy_date"])
-
-        # =========================
-        # 1. 计算 Legend 动态排序逻辑
-        # =========================
-        legend_order = []
-        if not df.empty and "buy_date" in df.columns and "pnl" in df.columns:
-            # 获取最新的日期（正序排列下的最后一行日期）
-            latest_date = df["buy_date"].iloc[-1]
-
-            # 提取最新日期的这组数据，按 pnl 降序排列，获取行业名称列表
-            legend_order = (
-                df[df["buy_date"] == latest_date]
-                .sort_values(by="pnl", ascending=False)["industry"]
-                .unique()
-                .tolist()
-            )
-
-        # =========================
-        # 3. chart
-        # =========================
-        fig = px.line(
-            df,
-            x="buy_date",
-            y="pnl",
-            color="industry",
-            line_group="industry",
-            color_discrete_sequence=cfg["pnl-colors"],
-            category_orders={"industry": legend_order},
+        # Forecast each industry's daily PnL independently with a mean-reverting
+        # AR(1) model and a residual-bootstrap prediction interval.
+        horizon = 20
+        simulations = 1000
+        last_date = df["buy_date"].max()
+        forecast_dates = pd.bdate_range(
+            start=last_date + pd.Timedelta(days=1), periods=horizon
         )
-        for trace in fig.data:
-            line_color = trace.line.color  # 获取 px 自动分配给该 Trace 的颜色
+        forecast_x = [last_date, *forecast_dates]
+        market_dates = pd.DatetimeIndex(df["buy_date"].drop_duplicates().sort_values())
 
-            # 动态计算加深背景（兼顾 HEX / RGB / RGBA）
-            dark_bg = self.darken_color(line_color, theme=theme) if line_color else None
-
-            # 更新单个 Trace 的属性：调整为 [行业名称] PnL: [格式化数值]
-            trace.update(
-                line=dict(width=1.5),
-                hovertemplate="<b>%{fullData.name}</b> PnL: %{y:,.2f}<br><extra></extra>",
-                hoverlabel=dict(
-                    bgcolor=dark_bg,  # 动态深色背景
-                ),
+        forecasts = {}
+        for index, industry in enumerate(industry_order):
+            industry_history = (
+                df.loc[df["industry"] == industry]
+                .groupby("buy_date", as_index=False)["pnl"]
+                .sum()
+                .set_index("buy_date")["pnl"]
             )
+            # The source is a daily aggregate: an industry absent on a market
+            # date has zero recorded PnL for that date.
+            history = industry_history.reindex(market_dates, fill_value=0).to_numpy(
+                dtype=float
+            )
+            recent_pnl = history[-60:]
+            last_pnl = float(recent_pnl[-1])
+            forecast_median = np.full(horizon, last_pnl, dtype=float)
+            forecast_low = forecast_median.copy()
+            forecast_high = forecast_median.copy()
 
-        xmin = df["buy_date"].min()
-        xmax = df["buy_date"].max()
-        ymax = df["pnl"].max()
-
-        fig.update_xaxes(
-            title=None,
-            rangebreaks=[
-                dict(
-                    values=pd.date_range(
-                        df["buy_date"].min(), df["buy_date"].max(), freq="D"
-                    )
-                    .strftime("%Y-%m-%d")
-                    .difference(df["buy_date"].dt.strftime("%Y-%m-%d"))
+            if len(recent_pnl) >= 3:
+                recent_mean = float(np.mean(recent_pnl))
+                centered_previous = recent_pnl[:-1] - recent_mean
+                centered_next = recent_pnl[1:] - recent_mean
+                denominator = float(np.dot(centered_previous, centered_previous))
+                phi = (
+                    float(np.dot(centered_previous, centered_next) / denominator)
+                    if denominator > np.finfo(float).eps
+                    else 0.0
                 )
-            ],
+                phi = float(np.clip(phi, -0.95, 0.98))
+                residuals = centered_next - phi * centered_previous
+                residuals = residuals - residuals.mean()
+
+                if np.any(np.abs(residuals) > np.finfo(float).eps):
+                    rng = np.random.default_rng(42 + index)
+                    sampled_residuals = rng.choice(
+                        residuals, size=(simulations, horizon), replace=True
+                    )
+                    paths = np.empty((simulations, horizon), dtype=float)
+                    simulated_last = np.full(simulations, last_pnl, dtype=float)
+                    for step in range(horizon):
+                        simulated_last = (
+                            recent_mean
+                            + phi * (simulated_last - recent_mean)
+                            + sampled_residuals[:, step]
+                        )
+                        paths[:, step] = simulated_last
+
+                    forecast_median = np.quantile(paths, 0.50, axis=0)
+                    forecast_low = np.quantile(paths, 0.10, axis=0)
+                    forecast_high = np.quantile(paths, 0.90, axis=0)
+                else:
+                    forecast_median = recent_mean + phi ** np.arange(1, horizon + 1) * (
+                        last_pnl - recent_mean
+                    )
+                    forecast_low = forecast_median.copy()
+                    forecast_high = forecast_median.copy()
+
+            forecasts[industry] = {
+                "last": last_pnl,
+                "median": np.r_[last_pnl, forecast_median],
+                "low": np.r_[last_pnl, forecast_low],
+                "high": np.r_[last_pnl, forecast_high],
+                "history": history,
+            }
+
+        fig = make_subplots(
+            rows=1,
+            cols=2,
+            column_widths=[2 / 3, 1 / 3],
+            horizontal_spacing=0.055,
+            subplot_titles=(None, "Forecast · 20 weekdays"),
+        )
+
+        palette = cfg["pnl-colors"]
+        for index, industry in enumerate(industry_order):
+            industry_df = df[df["industry"] == industry].sort_values("buy_date")
+            line_color = palette[index % len(palette)]
+            line_bg = self.darken_color(line_color, theme=theme)
+            legend_group = str(industry)
+            fig.add_trace(
+                go.Scatter(
+                    x=industry_df["buy_date"],
+                    y=industry_df["pnl"],
+                    mode="lines",
+                    name=str(industry),
+                    legendgroup=legend_group,
+                    line=dict(color=line_color, width=1.5),
+                    visible=True if industry == focus_industry else "legendonly",
+                    hovertemplate=(
+                        "<b>%{fullData.name}</b> PnL: %{y:,.2f}"
+                        "<br>%{x|%Y-%m-%d}<extra></extra>"
+                    ),
+                    hoverlabel=dict(bgcolor=line_bg),
+                ),
+                row=1,
+                col=1,
+            )
+            forecast = forecasts[industry]
+            forecast_color = line_color
+            forecast_fill = self._get_alpha_color(forecast_color, alpha=0.18)
+            forecast_visible = True if industry == focus_industry else "legendonly"
+            forecast_customdata = np.column_stack([forecast["low"], forecast["high"]])
+            fig.add_trace(
+                go.Scatter(
+                    x=forecast_x,
+                    y=forecast["low"],
+                    mode="lines",
+                    line=dict(width=0, color=forecast_fill),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    legendgroup=legend_group,
+                    visible=forecast_visible,
+                    name=f"{industry} 80% interval lower",
+                ),
+                row=1,
+                col=2,
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=forecast_x,
+                    y=forecast["high"],
+                    mode="lines",
+                    line=dict(width=0, color=forecast_fill),
+                    fill="tonexty",
+                    fillcolor=forecast_fill,
+                    hoverinfo="skip",
+                    showlegend=False,
+                    legendgroup=legend_group,
+                    visible=forecast_visible,
+                    name=f"{industry} 80% interval",
+                ),
+                row=1,
+                col=2,
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=forecast_x,
+                    y=forecast["median"],
+                    mode="lines",
+                    name=f"{industry} forecast",
+                    legendgroup=legend_group,
+                    line=dict(color=forecast_color, width=1.8, dash="dash"),
+                    customdata=forecast_customdata,
+                    hovertemplate=(
+                        f"<b>{industry} AR(1) forecast</b><br>Median: "
+                        "%{y:,.2f}<br>80% interval: %{customdata[0]:,.2f}–"
+                        "%{customdata[1]:,.2f}<br>%{x|%Y-%m-%d}<extra></extra>"
+                    ),
+                    hoverlabel=dict(bgcolor=line_bg),
+                    showlegend=False,
+                    visible=forecast_visible,
+                ),
+                row=1,
+                col=2,
+            )
+
+        observed_dates = pd.DatetimeIndex(
+            pd.concat(
+                [df["buy_date"], pd.Series(forecast_dates)], ignore_index=True
+            ).drop_duplicates()
+        )
+        range_break_values = (
+            pd.date_range(df["buy_date"].min(), forecast_dates[-1], freq="D")
+            .difference(observed_dates)
+            .strftime("%Y-%m-%d")
+        )
+
+        common_xaxis = dict(
+            title=None,
+            rangebreaks=[dict(values=range_break_values)],
             mirror=False,
             automargin=False,
             tickangle=0,
-            tickfont=dict(
-                size=font_size,
-                color=text_color,
-                family=self.font_family,
-            ),
+            tickfont=dict(size=font_size, color=text_color, family=self.font_family),
             showline=False,
             linecolor=cfg["gridcolor"],
             linewidth=1,
@@ -1824,73 +1908,83 @@ class ChartBuilder:
             showgrid=False,
             gridcolor=cfg["gridcolor"],
             gridwidth=0.5,
-            tickmode="linear",
-            dtick="M1",
-            tickformat="%Y-%m",
             hoverformat="%Y-%m-%d",
-            range=[
-                xmin - timedelta(days=0.5),
-                xmax + timedelta(days=0.5),
-            ],
         )
-
-        fig.update_yaxes(
+        fig.update_xaxes(
+            **common_xaxis,
+            tickmode="linear",
+            dtick="M2",
+            tickformat="%Y-%m",
+            range=[
+                df["buy_date"].min() - timedelta(days=0.5),
+                last_date + timedelta(days=0.5),
+            ],
+            row=1,
+            col=1,
+        )
+        fig.update_xaxes(
+            **common_xaxis,
+            tickmode="array",
+            tickvals=[forecast_dates[i - 1] for i in (1, 10, 20)],
+            ticktext=[forecast_dates[i - 1].strftime("%m-%d") for i in (1, 10, 20)],
+            range=[
+                last_date - timedelta(days=0.5),
+                forecast_dates[-1] + timedelta(days=0.5),
+            ],
+            row=1,
+            col=2,
+        )
+        axis_style = dict(
             title=None,
             mirror=False,
-            showticklabels=False,  # 关闭刻度标签
-            ticks="",  # 关闭刻度线
-            tickfont=dict(
-                size=font_size,
-                color=text_color,
-                family=self.font_family,
-            ),
+            ticks="",
+            tickfont=dict(size=font_size, color=text_color, family=self.font_family),
             showline=False,
             linecolor=cfg["gridcolor"],
             linewidth=1,
-            zeroline=False,
+            zeroline=True,
+            zerolinecolor=cfg["gridcolor"],
+            zerolinewidth=0.7,
             gridcolor=cfg["gridcolor"],
             gridwidth=0.5,
-            ticklabelposition="inside",
-            tickangle=0,
+        )
+        fig.update_yaxes(
+            **axis_style,
             autorange=True,
-            dtick=ymax / 3,
+            showticklabels=False,
+            row=1,
+            col=1,
+        )
+        fig.update_yaxes(
+            **axis_style,
+            autorange=True,
+            matches="y",
+            showticklabels=True,
+            row=1,
+            col=2,
         )
 
+        fig.update_annotations(
+            font=dict(size=font_size, color=text_color, family=self.font_family)
+        )
         fig.update_layout(
-            # title=dict(
-            #     # text="Last 180 days top5 pnl",
-            #     text=r"""
-            #         $\mathrm{Top5\ 盈亏}_{180d} = \sum_{i=1}^{5} \mathrm{PnL}_i
-            #         \ (\text{倒排序})$
-            #         """,
-            #     x=0.5,
-            #     y=0.9,
-            #     font=dict(
-            #         size=title_font_size,
-            #         color=text_color,
-            #         family=self.font_family,
-            #     ),
-            # ),
             title="",
             legend_title_text=None,
             legend=dict(
                 orientation="v",
-                x=0,
+                x=0.01,
                 xanchor="left",
-                y=1,
+                y=0.98,
                 yanchor="top",
-                font=dict(
-                    size=font_size,
-                    color=text_color,
-                    family=self.font_family,
-                ),
+                font=dict(size=font_size, color=text_color, family=self.font_family),
                 bgcolor=cfg["legend-bg-color"],
                 borderwidth=0,
                 tracegroupgap=0,
+                groupclick="togglegroup",
             ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(t=0, b=5, l=0, r=0),
+            margin=dict(t=28, b=5, l=0, r=0),
             autosize=True,
             dragmode=False,
             hovermode="x",
@@ -1903,7 +1997,6 @@ class ChartBuilder:
                 ),
             ),
         )
-
         return fig
 
     def industry_position_treemap(
