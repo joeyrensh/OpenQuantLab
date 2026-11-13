@@ -1984,7 +1984,7 @@ class ChartBuilder:
             ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            margin=dict(t=28, b=5, l=0, r=0),
+            margin=dict(t=0, b=5, l=0, r=0),
             autosize=True,
             dragmode=False,
             hovermode="x",
