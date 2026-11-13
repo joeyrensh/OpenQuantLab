@@ -1739,7 +1739,7 @@ class ChartBuilder:
             history = industry_history.reindex(market_dates, fill_value=0).to_numpy(
                 dtype=float
             )
-            recent_pnl = history[-60:]
+            recent_pnl = history
             last_pnl = float(recent_pnl[-1])
             forecast_median = np.full(horizon, last_pnl, dtype=float)
             forecast_low = forecast_median.copy()
