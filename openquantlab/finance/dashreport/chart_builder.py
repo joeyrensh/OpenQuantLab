@@ -1796,8 +1796,18 @@ class ChartBuilder:
             rows=1,
             cols=2,
             column_widths=[2 / 3, 1 / 3],
-            horizontal_spacing=0.055,
-            subplot_titles=(None, "Forecast · 20 weekdays"),
+            horizontal_spacing=0.01,
+            subplot_titles=(None, None),
+        )
+        fig.add_annotation(
+            text="Forecast · 20 weekdays",
+            x=0.84,
+            y=0.985,
+            xref="paper",
+            yref="paper",
+            xanchor="center",
+            yanchor="top",
+            showarrow=False,
         )
 
         palette = cfg["pnl-colors"]
@@ -1844,6 +1854,7 @@ class ChartBuilder:
                 row=1,
                 col=2,
             )
+
             fig.add_trace(
                 go.Scatter(
                     x=forecast_x,
@@ -1878,6 +1889,34 @@ class ChartBuilder:
                     hoverlabel=dict(bgcolor=line_bg),
                     showlegend=False,
                     visible=forecast_visible,
+                ),
+                row=1,
+                col=2,
+            )
+            predicted_values = forecast["median"][1:]
+            predicted_mean = float(np.mean(predicted_values))
+            summary_text = (
+                f"Max: {np.max(predicted_values):,.2f}<br>"
+                f"Mean: {predicted_mean:,.2f}<br>"
+                f"Min: {np.min(predicted_values):,.2f}"
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[forecast_dates[-1]],
+                    y=[float(np.max(forecast["high"][1:]))],
+                    mode="text",
+                    text=[summary_text],
+                    textposition="bottom left",
+                    textfont=dict(
+                        size=max(font_size - 1, 9),
+                        color=forecast_color,
+                        family=self.font_family,
+                    ),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    legendgroup=legend_group,
+                    visible=forecast_visible,
+                    name=f"{industry} forecast summary",
                 ),
                 row=1,
                 col=2,
@@ -1959,7 +1998,7 @@ class ChartBuilder:
             **axis_style,
             autorange=True,
             matches="y",
-            showticklabels=True,
+            showticklabels=False,
             row=1,
             col=2,
         )
