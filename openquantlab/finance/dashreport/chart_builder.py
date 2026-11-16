@@ -887,6 +887,20 @@ class ChartBuilder:
 
         show_bar = bar_metric is not None
 
+        # Keep the initial axis ranges in sync with the strategy shown by default.
+        strategy_order = [
+            "多头排列",
+            "突破年线",
+            "均线金叉",
+            "均线收敛",
+            "突破半年线",
+            "成交量放大",
+            "红三兵",
+            "连续上涨",
+        ]
+        valid_strategies = [s for s in strategy_order if s in df["strategy"].values]
+        default_strategy = valid_strategies[0] if valid_strategies else None
+
         # =========================
         # 1. 数据预处理 (Bar 逻辑)
         # =========================
@@ -941,46 +955,8 @@ class ChartBuilder:
                     )
                     bar_hover_fmt = f"<b>{metric_label}</b>: %{{y:,.2f}}"
 
-            df_pos_sum = df.groupby("date")["bar_pos"].sum()
-            df_neg_sum = df.groupby("date")["bar_neg"].sum()
-
-            if not df_pos_sum.empty and not df_neg_sum.empty:
-                # 1. 过滤正值：只保留 <= 95% 分位数的数据（剔除最高的 5% 极端值），然后取最大值
-                pos_cutoff = df_pos_sum.quantile(0.9)
-                max_pos = df_pos_sum[df_pos_sum <= pos_cutoff].max()
-
-                # 2. 过滤负值：只保留 >= 5% 分位数的数据（剔除最深的 5% 极端值），然后取最小值
-                neg_cutoff = df_neg_sum.quantile(0.1)
-                min_neg = df_neg_sum[df_neg_sum >= neg_cutoff].min()
-            else:
-                max_pos, min_neg = 0, 0
-            # =========================================================
-            # Y 轴 Range 计算逻辑 (加入 10% 缓冲区与 Ratio 精确控制)
-            # =========================================================
-            if bar_metric == "cnt":
-                max_range = max_pos * 1.1 if max_pos > 0 else 10
-                min_range = 0
-            else:
-                if is_ratio_metric:
-                    if max_pos > 0:
-                        max_range = min(1.0, max_pos * 1.10)
-                    else:
-                        max_range = 0.01  # 全负数时，给上方留一点空间，防止标注被裁
-
-                    if min_neg < 0:
-                        min_range = max(-1.0, min_neg * 1.10)
-                    else:
-                        min_range = 0.0  # 全正数时，0轴直接贴底
-                else:
-                    # 普通金额 (PnL, Avg) 类型
-                    min_floor = 1.0
-                    safe_max_pos = max(max_pos, min_floor)
-                    safe_abs_neg = max(abs(min_neg), min_floor)
-
-                    max_range = safe_max_pos * 1.10
-                    min_range = -safe_abs_neg * 1.10
-        else:
-            min_range, max_range = 0, 1
+        # The y-axis is autoranged from currently visible traces so legend selection
+        # rescales both subplots to the active strategy instead of clipping its extrema.
 
         # =========================
         # 2. 数据预处理 (Trend 逻辑)
@@ -1009,45 +985,9 @@ class ChartBuilder:
         else:
             df["trend_val"] = df[target_col]
 
-        # 2. 根据实际上图的 trend_val 评估 Y 轴 Range
-        if trend_metric == "success_rate":
-            # 过滤掉 dropna 和可能的异常 0 值（仅针对正常波动区间评估）
-            valid_rates = df["trend_val"].dropna()
-
-            if not valid_rates.empty:
-                raw_min = valid_rates.min()
-                raw_max = valid_rates.max()
-
-                # 基于平滑后的真实起伏，设置 10%~15% 的紧致缓冲区
-                if raw_max >= 1.0:
-                    y1_max = 1.1
-                else:
-                    y1_max = min(1.0, raw_max * 1.1)
-
-                y1_min = max(0.0, raw_min * 0.9)
-                y1_dtick = (y1_max - y1_min) / 3
-            else:
-                y1_min, y1_max, y1_dtick = 0.0, 1.1, 1 / 3
-
-            y1_range = [y1_min, y1_max]
-            y1_autorange = False
-        else:  # symbol_ratio
-            y1_range, y1_dtick, y1_autorange = None, None, True
-
         # =========================
         # 3. 策略顺序与默认显示策略
         # =========================
-        strategy_order = [
-            "多头排列",
-            "突破年线",
-            "均线金叉",
-            "均线收敛",
-            "突破半年线",
-            "成交量放大",
-            "红三兵",
-            "连续上涨",
-        ]
-
         line_styles = [
             {"dash": "solid", "width": 1.5},
             {"dash": "solid", "width": 1.5},
@@ -1068,8 +1008,6 @@ class ChartBuilder:
             for idx, strat in enumerate(strategy_order)
         }
 
-        valid_strategies = [s for s in strategy_order if s in df["strategy"].values]
-        default_strategy = valid_strategies[0] if valid_strategies else None
         df_sorted = df[df["strategy"].isin(valid_strategies)].copy()
 
         xmin = pd.to_datetime(df["date"].min())
@@ -1350,7 +1288,7 @@ class ChartBuilder:
         # =========================================================
         # 7. Layout 配置（维持严格贴边 r=0）
         # =========================================================
-        y1_domain = [0.35, 1.0] if show_bar else [0.0, 1.0]
+        y1_domain = [0.35, 0.82] if show_bar else [0.0, 0.82]
         y2_domain = [0.0, 0.35]
 
         yaxis_config = dict(
@@ -1372,22 +1310,9 @@ class ChartBuilder:
             automargin=False,
         )
 
-        if y1_autorange:
-            yaxis_config["autorange"] = True
-        elif y1_range is not None:
-            yaxis_config["autorange"] = False
-            yaxis_config["range"] = y1_range
-
-        if y1_dtick is not None:
-            yaxis_config["tickmode"] = "linear"
-            yaxis_config["dtick"] = y1_dtick
+        yaxis_config["autorange"] = True
 
         y2_tickfmt = "%" if is_ratio_metric else "~s"
-        # 1. 针对比例/收益率类型的 Bar 图设置合理的 dtick
-        y2_dtick = None
-        if show_bar and is_ratio_metric:
-            span = max_range - min_range
-            y2_dtick = span / 3 if span > 0 else 0.05
 
         yaxis2_config = dict(
             domain=y2_domain,
@@ -1404,7 +1329,8 @@ class ChartBuilder:
             zeroline=True,
             zerolinecolor=grid_color,
             zerolinewidth=0.5,
-            range=[min_range, max_range],
+            autorange=True,
+            rangemode="tozero",
             tickformat=y2_tickfmt,
             layer="below traces",
             ticklabelposition="inside",
@@ -1441,9 +1367,6 @@ class ChartBuilder:
                 xmax + timedelta(days=0.5),
             ],
         )
-        if y2_dtick is not None:
-            yaxis2_config["dtick"] = y2_dtick
-
         fig.update_layout(
             xaxis=dict(
                 **common_xaxis_args,
