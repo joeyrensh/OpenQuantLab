@@ -994,9 +994,9 @@ class ChartBuilder:
             {"dash": "solid", "width": 1.5},
             {"dash": "solid", "width": 1.5},
             {"dash": "solid", "width": 1.5},
-            {"dash": "dash", "width": 1.5},
-            {"dash": "dash", "width": 1.5},
-            {"dash": "dash", "width": 1.5},
+            {"dash": "solid", "width": 1.5},
+            {"dash": "solid", "width": 1.5},
+            {"dash": "solid", "width": 1.5},
         ]
 
         strategy_cfg = {
@@ -1132,7 +1132,7 @@ class ChartBuilder:
                                     textposition=smart_pos,
                                     textfont=dict(
                                         size=int(base_font_size),
-                                        color=color,
+                                        color=text_color,
                                         family=self.font_family,
                                     ),
                                     showlegend=False,
@@ -1272,7 +1272,7 @@ class ChartBuilder:
                                 textposition=smart_pos,
                                 textfont=dict(
                                     size=int(base_font_size),
-                                    color=cfg_item["color"],
+                                    color=text_color,
                                     family=self.font_family,
                                 ),
                                 hoverlabel=dict(
@@ -1832,7 +1832,7 @@ class ChartBuilder:
                     textposition="bottom left",
                     textfont=dict(
                         size=max(font_size - 1, 9),
-                        color=forecast_color,
+                        color=text_color,
                         family=self.font_family,
                     ),
                     hoverinfo="skip",
@@ -4105,8 +4105,8 @@ class ChartBuilder:
                 name="Daily Pnl",
                 mode="lines+markers",
                 cliponaxis=False,
-                line=dict(color=cfg.get("cumret-line-color"), width=1.5),
-                marker=dict(size=6 * unified_scale, color=cfg.get("cumret-line-color")),
+                line=dict(color=cfg.get("total-cnt-color"), width=1.5),
+                marker=dict(size=6 * unified_scale, color=cfg.get("total-cnt-color")),
                 text=df["hover-text-color"],
                 hovertemplate="%{text}<extra></extra>",
                 yaxis="y",
@@ -4202,8 +4202,8 @@ class ChartBuilder:
                 gridwidth=0.5,
                 side="left",
                 zeroline=True,
-                zerolinecolor=cfg["total-cnt-color"],
-                zerolinewidth=1,
+                zerolinecolor=self.darken_color(cfg["gridcolor"], theme),
+                zerolinewidth=2,
                 showline=False,
                 dtick=(ymax - ymin) / 3,
                 ticklabelposition="inside",

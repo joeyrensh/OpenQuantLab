@@ -191,14 +191,7 @@ class KpiCallback:
             for idx, (label, value, pct) in enumerate(kpis):
                 extra_class = "kpi-date" if label == "Date" else ""
 
-                if label == "Date":
-                    if pct == "Up to date":
-                        pct_class = "kpi-pct-up"
-                    elif pct == "Pending update":
-                        pct_class = "kpi-pct-down"
-                    else:
-                        pct_class = "kpi-pct-neutral"
-                elif pct.startswith("+"):
+                if pct.startswith("+"):
                     pct_class = "kpi-pct-up"
                 elif pct.startswith("-"):
                     pct_class = "kpi-pct-down"
