@@ -1249,7 +1249,7 @@ a:active { color: var(--text-color); text-decoration: underline; }
 
 .weight-slider-primary .rc-slider-track {
     background-color: var(--blue-line-color);
-    height:4px;
+    height: 2px;
     touch-action: pan-y;
     pointer-events: none; 
 }
