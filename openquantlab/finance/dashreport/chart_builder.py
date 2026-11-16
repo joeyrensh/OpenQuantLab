@@ -1049,7 +1049,7 @@ class ChartBuilder:
                                 yaxis="y2",
                                 marker=dict(
                                     color=color,
-                                    line=dict(color=color, width=0.8 * scale),
+                                    line=dict(color=color, width=0.3),
                                 ),
                                 showlegend=False,
                                 legendgroup=strat,
@@ -1070,7 +1070,7 @@ class ChartBuilder:
                                 yaxis="y2",
                                 marker=dict(
                                     color=color,
-                                    line=dict(color=color, width=0.8 * scale),
+                                    line=dict(color=color, width=0.3),
                                 ),
                                 showlegend=False,
                                 legendgroup=strat,
@@ -1089,9 +1089,7 @@ class ChartBuilder:
                             y=data["bar_pos"],
                             xaxis="x2",
                             yaxis="y2",
-                            marker=dict(
-                                color=color, line=dict(color=color, width=0.8 * scale)
-                            ),
+                            marker=dict(color=color, line=dict(color=color, width=0.3)),
                             showlegend=False,
                             legendgroup=strat,
                             hovertemplate=f"{strat} {bar_hover_fmt}<extra></extra>",
@@ -1470,9 +1468,7 @@ class ChartBuilder:
                 x=df["buy_date"],
                 y=df["buy_cnt"],
                 name="Long",
-                marker=dict(
-                    color=cfg["long"], line=dict(color=cfg["long"], width=0.8 * scale)
-                ),
+                marker=dict(color=cfg["long"], line=dict(color=cfg["long"], width=0.3)),
                 yaxis="y",
                 hovertemplate=(
                     # "<b>日期</b>: %{x|%Y-%m-%d}<br>"
@@ -1488,7 +1484,7 @@ class ChartBuilder:
                 y=df["sell_cnt"],
                 name="Short",
                 marker=dict(
-                    color=cfg["short"], line=dict(color=cfg["short"], width=0.8 * scale)
+                    color=cfg["short"], line=dict(color=cfg["short"], width=0.3)
                 ),
                 yaxis="y",
                 hovertemplate=(
@@ -3063,7 +3059,7 @@ class ChartBuilder:
                 name=legend_name,
                 increasing=dict(line_color=cfg["long"], fillcolor=cfg["long"]),
                 decreasing=dict(line_color=cfg["short"], fillcolor=cfg["short"]),
-                line=dict(width=0.8 * scale),
+                line=dict(width=0.3),
                 showlegend=True,
                 hovertemplate=(
                     "<b>O</b>: %{open:.2f} <b>H</b>: %{high:.2f}<br>"
@@ -3107,7 +3103,7 @@ class ChartBuilder:
                 x=df["datetime"],
                 y=df["volume"],
                 name=legend_name_volume,
-                marker=dict(color=colors, line=dict(color=colors, width=0.8 * scale)),
+                marker=dict(color=colors, line=dict(color=colors, width=0.3)),
                 showlegend=True,
                 opacity=1.0,
                 hovertemplate="Volume: %{y:.2s}<extra></extra>",
