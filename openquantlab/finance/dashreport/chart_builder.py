@@ -989,14 +989,14 @@ class ChartBuilder:
         # 3. 策略顺序与默认显示策略
         # =========================
         line_styles = [
-            {"dash": "solid", "width": 1.5},
-            {"dash": "solid", "width": 1.5},
-            {"dash": "solid", "width": 1.5},
-            {"dash": "solid", "width": 1.5},
-            {"dash": "solid", "width": 1.5},
-            {"dash": "solid", "width": 1.5},
-            {"dash": "solid", "width": 1.5},
-            {"dash": "solid", "width": 1.5},
+            {"dash": "solid", "width": 1},
+            {"dash": "solid", "width": 1},
+            {"dash": "solid", "width": 1},
+            {"dash": "solid", "width": 1},
+            {"dash": "solid", "width": 1},
+            {"dash": "solid", "width": 1},
+            {"dash": "solid", "width": 1},
+            {"dash": "solid", "width": 1},
         ]
 
         strategy_cfg = {
@@ -1453,7 +1453,7 @@ class ChartBuilder:
                 mode="lines",
                 name="Total",
                 # line=dict(color=cfg["total-cnt-color"], width=3 * unified_scale),
-                line=dict(color=cfg["total-cnt-color"], width=1.5),
+                line=dict(color=cfg["total-cnt-color"], width=1),
                 yaxis="y",
                 hovertemplate=(
                     # "<b>日期</b>: %{x|%Y-%m-%d}<br>"
@@ -1746,7 +1746,7 @@ class ChartBuilder:
                     mode="lines",
                     name=str(industry),
                     legendgroup=legend_group,
-                    line=dict(color=line_color, width=1.5),
+                    line=dict(color=line_color, width=1),
                     visible=True if industry == focus_industry else "legendonly",
                     hovertemplate=(
                         "<b>%{fullData.name}</b> PnL: %{y:,.2f}"
@@ -1802,7 +1802,7 @@ class ChartBuilder:
                     mode="lines",
                     name=f"{industry} forecast",
                     legendgroup=legend_group,
-                    line=dict(color=forecast_color, width=1.8, dash="dash"),
+                    line=dict(color=forecast_color, width=1, dash="dash"),
                     customdata=forecast_customdata,
                     hovertemplate=(
                         f"<b>{industry} AR(1) forecast</b><br>Median: "
@@ -2359,7 +2359,7 @@ class ChartBuilder:
                     ],
                 ),
                 name="Cum. Return",
-                line=dict(color=cfg["cumret-line-color"], width=1.5),
+                line=dict(color=cfg["cumret-line-color"], width=1),
                 hovertemplate=("<b>Cum. Return</b>: %{y:.2f}<br><extra></extra>"),
                 hoverlabel=dict(
                     bgcolor=self.darken_color(hover_config["cumret-line-color"], theme),
@@ -4105,7 +4105,7 @@ class ChartBuilder:
                 name="Daily Pnl",
                 mode="lines+markers",
                 cliponaxis=False,
-                line=dict(color=cfg.get("total-cnt-color"), width=1.5),
+                line=dict(color=cfg.get("total-cnt-color"), width=1),
                 marker=dict(size=6 * unified_scale, color=cfg.get("total-cnt-color")),
                 text=df["hover-text-color"],
                 hovertemplate="%{text}<extra></extra>",
