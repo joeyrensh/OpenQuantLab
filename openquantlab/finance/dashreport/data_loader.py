@@ -42,7 +42,7 @@ class ReportDataLoader:
             "OPEN": ("int",),
             "L5 OPEN": ("int",),
             "L5 CLOSE": ("int",),
-            "LRATIO": ("ratio", "format"),
+            "LRATIO": ("ratio",),
             "PROFIT": ("int", "format"),
             "PNL RATIO": ("ratio", "format"),
             "AVG TRANS": ("float",),
@@ -93,7 +93,7 @@ class ReportDataLoader:
             "ERP": ("float",),
             "SHARPE RATIO": ("float",),
             "SORTINO RATIO": ("float",),
-            "MAX DD": ("ratio", "format"),
+            "MAX DD": ("ratio",),
         },
     }
 

@@ -1277,7 +1277,12 @@ class BacktestPage:
                 ),
                 html.Div(
                     id="backtest-status",
-                    style={"marginTop": "5px", "marginBottom": "-6px", "marginLeft": "2px", "color": "#666"},
+                    style={
+                        "marginTop": "5px",
+                        "marginBottom": "-6px",
+                        "marginLeft": "2px",
+                        "color": "#666",
+                    },
                     className="page-sub-desc",
                 ),
                 html.Div(

@@ -858,12 +858,6 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
     ]
     style_data_conditional = numeric_cell_styles + style_data_conditional
 
-    ratio_progress_columns = {
-        "LRATIO",
-        "PNL RATIO",
-        "WIN RATE",
-        "TOTAL PNL RATIO",
-    }
     style_header_conditional = []
 
     for col in original_df.columns:
@@ -872,7 +866,6 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
             and len(cols_format[col]) > 1
             and cols_format[col][0] == "ratio"
             and cols_format[col][1] == "format"
-            and col in ratio_progress_columns
         ):
             label_width_em = _numeric_label_width_em(original_df.get(col), "ratio")
             style_header_conditional.append(
@@ -914,7 +907,7 @@ def make_dash_format_table(df, cols_format, market, trade_date, table_name):
         )
 
     # 在这里把按值分段着色应用到需要的列
-    gradient_target_cols = ["SHARPE RATIO", "SORTINO RATIO"]
+    gradient_target_cols = ["SORTINO RATIO"]
 
     for col in gradient_target_cols:
         style_data_conditional.extend(
