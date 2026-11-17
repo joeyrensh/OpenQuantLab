@@ -1331,7 +1331,18 @@ def create_layout(app: Dash):
 
     weight_title_section = html.Div(
         [
-            html.H6("Weight Configuration", className="subtitle padded"),
+            html.Button(
+                html.H6(["Weight Configuration ‹"], className="subtitle padded"),
+                id={"type": "collapse-btn", "page": "settings", "index": 0},
+                style={
+                    "backgroundColor": "transparent",
+                    "border": "none",
+                    "padding": 0,
+                    "cursor": "pointer",
+                    "width": "100%",
+                    "textAlign": "left",
+                },
+            ),
             html.P(
                 "To adjust scoring weights freely. Click [Save to Json] or [Save as Default].",
                 className="text-secondary text-center mb-4 small page-sub-desc",
@@ -1359,12 +1370,25 @@ def create_layout(app: Dash):
                     dbc.Col(build_chart_display_card(init_cfg), lg=6, md=12),
                 ]
             ),
-        ]
+        ],
+        id={"type": "collapsible", "page": "settings", "index": 0},
+        style={"display": "block", "width": "100%"},
     )
 
     strategy_title_section = html.Div(
         [
-            html.H6("Strategy Configuration", className="subtitle padded mt-5"),
+            html.Button(
+                html.H6(["Strategy Configuration ‹"], className="subtitle padded mt-5"),
+                id={"type": "collapse-btn", "page": "settings", "index": 1},
+                style={
+                    "backgroundColor": "transparent",
+                    "border": "none",
+                    "padding": 0,
+                    "cursor": "pointer",
+                    "width": "100%",
+                    "textAlign": "left",
+                },
+            ),
             html.P(
                 "Fine-tune strategy parameters, indicators, market grouping, and filtering criteria.",
                 className="text-secondary text-center mb-4 small page-sub-desc",
@@ -1433,12 +1457,25 @@ def create_layout(app: Dash):
                     ),
                 ]
             ),
-        ]
+        ],
+        id={"type": "collapsible", "page": "settings", "index": 1},
+        style={"display": "block", "width": "100%"},
     )
 
     schedule_title_section = html.Div(
         [
-            html.H6("Schedule Configuration", className="subtitle padded mt-5"),
+            html.Button(
+                html.H6(["Schedule Configuration ‹"], className="subtitle padded mt-5"),
+                id={"type": "collapse-btn", "page": "settings", "index": 2},
+                style={
+                    "backgroundColor": "transparent",
+                    "border": "none",
+                    "padding": 0,
+                    "cursor": "pointer",
+                    "width": "100%",
+                    "textAlign": "left",
+                },
+            ),
             html.P(
                 "Set crontab timings for strategy execution and proxy data collection.",
                 className="text-secondary text-center mb-4 small page-sub-desc",
@@ -1457,7 +1494,9 @@ def create_layout(app: Dash):
                     ),
                 ]
             ),
-        ]
+        ],
+        id={"type": "collapsible", "page": "settings", "index": 2},
+        style={"display": "block", "width": "100%"},
     )
 
     # 4. 底部操作按钮区域（包含 Save as Default 按钮）

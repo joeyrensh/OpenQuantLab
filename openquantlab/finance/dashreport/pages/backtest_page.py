@@ -1316,13 +1316,25 @@ class BacktestPage:
     def build_annual_return_card(self):
         return html.Div(
             [
-                html.H6(["Returns & Drawdowns ‹"], className="subtitle padded"),
+                html.Button(
+                    html.H6(["Returns & Drawdowns ‹"], className="subtitle padded"),
+                    id={"type": "collapse-btn", "page": "backtest", "index": 0},
+                    style={
+                        "backgroundColor": "transparent",
+                        "border": "none",
+                        "padding": 0,
+                        "cursor": "pointer",
+                        "width": "100%",
+                        "textAlign": "left",
+                    },
+                ),
                 html.P(
                     "Review cumulative returns and portfolio drawdown over the test period.",
                     className="text-secondary small page-sub-desc",
                 ),
                 html.Div(
                     className="chart-container",
+                    id={"type": "collapsible", "page": "backtest", "index": 0},
                     children=[
                         dcc.Loading(
                             id="loading-backtest-pnl",
@@ -1352,8 +1364,20 @@ class BacktestPage:
     def build_kline_card(self):
         return html.Div(
             [
-                html.H6(
-                    ["Candlestick with Buy/Sell Signals ‹"], className="subtitle padded"
+                html.Button(
+                    html.H6(
+                        ["Candlestick with Buy/Sell Signals ‹"],
+                        className="subtitle padded",
+                    ),
+                    id={"type": "collapse-btn", "page": "backtest", "index": 1},
+                    style={
+                        "backgroundColor": "transparent",
+                        "border": "none",
+                        "padding": 0,
+                        "cursor": "pointer",
+                        "width": "100%",
+                        "textAlign": "left",
+                    },
                 ),
                 html.P(
                     "Inspect price action with historical buy and sell signals.",
@@ -1361,6 +1385,7 @@ class BacktestPage:
                 ),
                 html.Div(
                     className="chart-container",
+                    id={"type": "collapsible", "page": "backtest", "index": 1},
                     children=[
                         dcc.Loading(
                             id="loading-backtest-kline",
