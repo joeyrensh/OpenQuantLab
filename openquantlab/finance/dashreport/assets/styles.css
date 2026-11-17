@@ -116,7 +116,7 @@ p {
 
 p.padded,
 h6.padded {
-  padding: 2px 5px;
+  /* padding: 2px 5px; */
   margin-top: 10px;
   margin-bottom: 0px;
 }
@@ -198,10 +198,10 @@ h6 { font-size: 1.8rem; }
   color: var(--subtitle-color);
   left: 0;
   height: 20%;
-  border-left: 2px solid var(--border-left-color);
+  /* border-left: 2px solid var(--border-left-color); */
   padding-top: 1px;
   padding-bottom: 1px;
-  padding-left: 30px;
+  /* padding-left: 30px; */
   padding-right: 60px;
   text-transform: capitalize;
   font-family: var(--font-family) !important;
