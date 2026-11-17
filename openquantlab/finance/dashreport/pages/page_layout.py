@@ -20,6 +20,23 @@ class PageLayout:
             "cn_etf": "ETF Position Holding",
             "detail_short": "Position Reduction",
         }
+        self.section_descriptions = {
+            "kpi": "Portfolio value, benchmark performance, and market data status.",
+            "annual_return": "Cumulative performance, drawdown, and yearly return statistics.",
+            "industry_strength": "See which industries lead recent portfolio PnL.",
+            "heatmap": "Compare industry performance across recent trading dates.",
+            "strategy": "Track strategy success rates and daily PnL over time.",
+            "trade": "Follow daily buy and sell activity alongside total positions.",
+            "pnl_trend": "Review industry PnL history and short-term forecasts.",
+            "industry_position": "See how portfolio value is allocated across industries.",
+            "industry_profit": "Compare each industry's contribution to portfolio PnL.",
+        }
+        self.table_descriptions = {
+            "category": "Rank industries by returns, activity, and trading metrics.",
+            "detail": "Review open positions, valuation, risk, and return metrics.",
+            "cn_etf": "Review ETF positions and their performance statistics.",
+            "detail_short": "Review closed positions and their realized results.",
+        }
 
         # 数据加载
         self.data = ReportDataLoader.load(
@@ -46,6 +63,10 @@ class PageLayout:
         # 注册 charts
         self.register_charts()
 
+    @staticmethod
+    def _build_description(text):
+        return html.P(text, className="text-secondary small page-sub-desc")
+
     def register_charts(self):
         chart_map = [
             ("annual_return", 0),
@@ -71,6 +92,7 @@ class PageLayout:
         return html.Div(
             [
                 html.H6(["Backtest Data & Metrics"], className="subtitle padded"),
+                self._build_description(self.section_descriptions["kpi"]),
                 html.Div(
                     [
                         dcc.Loading(
@@ -113,6 +135,7 @@ class PageLayout:
                         "textAlign": "left",
                     },
                 ),
+                self._build_description(self.section_descriptions[chart_type]),
                 html.Div(
                     className="chart-container",
                     children=[
@@ -220,7 +243,8 @@ class PageLayout:
                 },
                 className="subtitle padded",
                 style={"cursor": ("pointer" if is_checkbox_enabled else "auto")},
-            )
+            ),
+            self._build_description(self.table_descriptions.get(table_id, "")),
         ]
 
         if is_checkbox_enabled:

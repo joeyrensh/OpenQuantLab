@@ -2445,6 +2445,12 @@ class ChartBuilder:
         if len(cumulative) > 0:
             cum_max_idx = cumulative.idxmax()
             cum_max_val = cumulative.max()
+            cum_max_label_x = cumulative.index[
+                max(
+                    int(len(cumulative) * (0.25 if scale >= 1 else 0.45)),
+                    cumulative.index.get_loc(cum_max_idx),
+                )
+            ]
             last_x = cumulative.index[-1]
             last_y = cumulative.iloc[-1]
 
@@ -2472,14 +2478,7 @@ class ChartBuilder:
 
             fig.add_trace(
                 go.Scatter(
-                    x=[
-                        cumulative.index[
-                            max(
-                                int(len(cumulative) * (0.25 if scale >= 1 else 0.45)),
-                                cumulative.index.get_loc(cumulative.idxmax()),
-                            )
-                        ]
-                    ],
+                    x=[cum_max_label_x],
                     y=[cum_max_val],
                     mode="markers+text",
                     marker=dict(
@@ -2487,7 +2486,7 @@ class ChartBuilder:
                     ),
                     text=[f"Max: {cum_max_val:.2f}"],
                     textposition=get_label_position(
-                        cum_max_idx, cumulative, cum_max_val, avoid_overflow=False
+                        cum_max_idx, cumulative, cum_max_val
                     ),
                     textfont=dict(
                         size=base_font, color=text_color, family=self.font_family

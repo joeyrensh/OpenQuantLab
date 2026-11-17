@@ -1124,6 +1124,10 @@ class BacktestPage:
         return dbc.Container(
             [
                 html.H6("Backtest Analysis", className="subtitle padded"),
+                html.P(
+                    "Choose a market, date, and symbols to configure a backtest.",
+                    className="text-secondary small page-sub-desc",
+                ),
                 html.Div(
                     [
                         html.Div(
@@ -1313,6 +1317,10 @@ class BacktestPage:
         return html.Div(
             [
                 html.H6(["Returns & Drawdowns ‹"], className="subtitle padded"),
+                html.P(
+                    "Review cumulative returns and portfolio drawdown over the test period.",
+                    className="text-secondary small page-sub-desc",
+                ),
                 html.Div(
                     className="chart-container",
                     children=[
@@ -1346,6 +1354,10 @@ class BacktestPage:
             [
                 html.H6(
                     ["Candlestick with Buy/Sell Signals ‹"], className="subtitle padded"
+                ),
+                html.P(
+                    "Inspect price action with historical buy and sell signals.",
+                    className="text-secondary small page-sub-desc",
                 ),
                 html.Div(
                     className="chart-container",
@@ -1384,6 +1396,10 @@ class BacktestPage:
                     className="twelve columns",
                     children=[
                         html.H6("Trade Log", className="subtitle padded"),
+                        html.P(
+                            "Review executed trades, entry prices, dates, and returns.",
+                            className="text-secondary small page-sub-desc",
+                        ),
                         html.Div(
                             [
                                 dcc.Loading(

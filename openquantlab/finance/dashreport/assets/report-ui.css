@@ -39,7 +39,7 @@
 #page-content .subtitle {
   left: auto;
   height: auto;
-  margin-bottom: 5px;
+  /* margin-bottom: 5px; */
   /* padding: 1px 0 1px 10px; */
   /* border-left: 3px solid var(--blue-line-color); */
   color: var(--subtitle-color);
@@ -48,9 +48,10 @@
 
 #page-content .subtitle.padded {
   margin-top: 0;
-  margin-bottom: 5px;
+  /* margin-bottom: 5px; */
   padding-top: 1px;
   padding-bottom: 1px;
+  padding: 0;
 }
 
 #page-content .product {
