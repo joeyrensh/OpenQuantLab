@@ -761,6 +761,9 @@ class BacktestPage:
                     pnl=pnl,
                     theme=theme,
                     client_width=client_width or 1440,
+                    chart_time_range=ToolKit.get_config(
+                        "chart_display.chart_time_range", default=120
+                    ),
                 ),
                 config={
                     "displayModeBar": False,

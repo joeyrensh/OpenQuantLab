@@ -2156,7 +2156,14 @@ class ChartBuilder:
                 "table_ratio_cap": 0.62,
             }
 
-    def annual_return(self, page, pnl: pd.Series, theme="light", client_width=1440):
+    def annual_return(
+        self,
+        page,
+        pnl: pd.Series,
+        theme="light",
+        client_width=1440,
+        chart_time_range=None,
+    ):
         """
         生成年度收益图表（上：图，下：表格）
         """
@@ -2188,6 +2195,117 @@ class ChartBuilder:
         cumulative = (1 + pnl).cumprod()
         peak = cumulative.cummax()
         drawdown = (cumulative - peak) / peak
+
+        # Use a broken time axis to show the full history and the configured
+        # recent window side by side. Older observations are compressed into
+        # the left half; the recent window gets equal horizontal space.
+        try:
+            focus_sessions = max(0, int(chart_time_range or 0))
+        except (TypeError, ValueError):
+            focus_sessions = 0
+
+        history_count = max(0, len(cumulative) - focus_sessions)
+        split_history = focus_sessions > 0 and history_count > 0
+        if split_history:
+            # Let the two windows meet at the same paper coordinate. The
+            # dotted divider still identifies the time break without a blank seam.
+            split_gap = 0.0
+            history_x_end = 0.5 - split_gap / 2
+            focus_x_start = 0.5 + split_gap / 2
+            chart_x = np.concatenate(
+                [
+                    np.linspace(0.0, history_x_end, history_count),
+                    np.linspace(
+                        focus_x_start,
+                        1.0,
+                        len(cumulative) - history_count,
+                    ),
+                ]
+            )
+        elif len(cumulative) > 1:
+            chart_x = np.linspace(0.0, 1.0, len(cumulative))
+        else:
+            chart_x = np.array([0.5]) if len(cumulative) else np.array([])
+
+        def chart_axis_for_date(date):
+            """Return the real-date x axis containing a point."""
+            if not split_history:
+                return "x"
+            index_position = cumulative.index.get_indexer([date])[0]
+            return "x2" if index_position >= history_count else "x"
+
+        def chart_position_for_date(date):
+            """Return the normalized visual x position for edge-label fitting."""
+            index_position = cumulative.index.get_indexer([date])[0]
+            return float(chart_x[index_position])
+
+        # Keep a small margin only at the chart's outside edges. At the split,
+        # both date axes meet their data so the two time windows stay adjacent.
+        xaxis_range = None
+        xaxis2_range = None
+        xaxis_domain = [0.0, 1.0]
+        xaxis2_domain = None
+        xaxis_tickvals = []
+        xaxis_ticktext = []
+        xaxis2_tickvals = []
+        xaxis2_ticktext = []
+        try:
+            calendar_days = pd.date_range(
+                cumulative.index.min(), cumulative.index.max(), freq="D"
+            ).strftime("%Y-%m-%d")
+            available_days = cumulative.index.strftime("%Y-%m-%d")
+            date_rangebreaks = [
+                dict(values=calendar_days.difference(available_days).tolist())
+            ]
+        except (TypeError, ValueError):
+            date_rangebreaks = []
+
+        if len(cumulative):
+            if split_history:
+                xaxis_domain = [0.0, history_x_end]
+                xaxis2_domain = [focus_x_start, 1.0]
+                history_start = cumulative.index[0]
+                focus_start = cumulative.index[history_count]
+                focus_end = cumulative.index[-1]
+                focus_count = len(cumulative) - history_count
+                focus_mid_index = history_count + (focus_count - 1) // 2
+                focus_mid = cumulative.index[focus_mid_index]
+                # Keep the oldest history point flush with the chart's left
+                # edge. Include focus_start on this axis as well so the left
+                # trace can reach the same boundary value as the right trace.
+                xaxis_range = [history_start, focus_start]
+                # Let the latest observation reach the far right edge; the
+                # in-panel date annotation does not need extra range padding.
+                xaxis2_range = [focus_start, focus_end]
+
+                # Use the historical midpoint, the split date, and the recent
+                # midpoint to balance the labels across the full chart.
+                history_tick = history_count // 2
+                xaxis_tickvals = [cumulative.index[history_tick]]
+                xaxis_ticktext = [cumulative.index[history_tick].strftime("%Y-%m")]
+                # Both the split date and recent midpoint are labeled below as
+                # paper annotations. Ticks at the sub-axis edges are clipped
+                # inconsistently by Plotly at different container widths.
+                xaxis2_tickvals = []
+                xaxis2_ticktext = []
+            else:
+                x_start = cumulative.index[0]
+                x_end = cumulative.index[-1]
+                x_pad = max(pd.Timedelta(days=1), (x_end - x_start) * 0.02)
+                xaxis_range = [x_start - x_pad, x_end + x_pad]
+                tick_positions = np.unique(
+                    np.linspace(
+                        0, len(cumulative) - 1, min(6, len(cumulative)), dtype=int
+                    )
+                )
+                xaxis_tickvals = [cumulative.index[i] for i in tick_positions]
+                xaxis_ticktext = [
+                    cumulative.index[i].strftime("%Y-%m") for i in tick_positions
+                ]
+
+        cumulative_y = cumulative.tolist()
+        drawdown_y = drawdown.tolist()
+        line_dates = cumulative.index.strftime("%Y-%m-%d").tolist()
 
         # =========================
         # 4. 年度统计
@@ -2299,71 +2417,87 @@ class ChartBuilder:
         # =========================
         # 10. 添加回撤曲线
         # =========================
-        fig.add_trace(
-            go.Scatter(
-                x=drawdown.index,
-                y=drawdown,
-                mode="lines",
-                fill="tozeroy",
-                fillgradient=dict(
-                    type="vertical",
-                    colorscale=[
-                        (0.0, "rgba(255, 255, 255, 0.0)"),
-                        (
-                            1.0,
-                            self._get_alpha_color(
-                                cfg.get("drawdown-line-color"), alpha=0.1
-                            ),
+        def add_annual_series(
+            values,
+            name,
+            color,
+            yaxis_name,
+            hover_value_label,
+            visible=None,
+            legendgroup=None,
+        ):
+            if split_history:
+                segments = [
+                    # Duplicate the first focus observation on the history
+                    # axis. Both traces then meet at the same y value across
+                    # the narrow visual seam instead of appearing disconnected.
+                    (slice(0, history_count + 1), "x", True),
+                    (slice(history_count, None), "x2", False),
+                ]
+            else:
+                segments = [(slice(None), "x", True)]
+
+            for data_slice, axis_name, show_legend in segments:
+                segment_x = cumulative.index[data_slice]
+                segment_y = values[data_slice]
+                segment_dates = line_dates[data_slice]
+                fig.add_trace(
+                    go.Scatter(
+                        x=segment_x,
+                        y=segment_y,
+                        customdata=segment_dates,
+                        xaxis=axis_name,
+                        mode="lines",
+                        fill="tozeroy",
+                        fillgradient=dict(
+                            type="vertical",
+                            colorscale=[
+                                (0.0, "rgba(255, 255, 255, 0.0)"),
+                                (1.0, self._get_alpha_color(color, alpha=0.1)),
+                            ],
                         ),
-                    ],
-                ),
-                name="Drawdown",
-                legendgroup="drawdown",
-                visible="legendonly",
-                line=dict(color=cfg["drawdown-line-color"], width=1),
-                hovertemplate=("<b>Drawdown</b>: %{y:.2%}<br><extra></extra>"),
-                hoverlabel=dict(
-                    bgcolor=self.darken_color(
-                        hover_config["drawdown-line-color"], theme
-                    ),
-                    bordercolor=hover_config.get("hover-border-color"),
-                    font=dict(color=hover_config.get("hover-text-color")),
-                ),
-                yaxis="y",
-            )
+                        name=name,
+                        legendgroup=legendgroup or name,
+                        showlegend=show_legend,
+                        visible=visible,
+                        line=dict(color=color, width=1),
+                        hovertemplate=(
+                            "<b>Date</b>: %{customdata}<br>"
+                            f"<b>{hover_value_label}</b>: "
+                            + (
+                                "%{y:.2%}<br><extra></extra>"
+                                if yaxis_name == "y"
+                                else "%{y:.2f}<br><extra></extra>"
+                            )
+                        ),
+                        hoverlabel=dict(
+                            bgcolor=self.darken_color(color, theme),
+                            bordercolor=hover_config.get("hover-border-color"),
+                            font=dict(color=hover_config.get("hover-text-color")),
+                        ),
+                        yaxis=yaxis_name,
+                    )
+                )
+
+        add_annual_series(
+            drawdown_y,
+            "Drawdown",
+            cfg["drawdown-line-color"],
+            "y",
+            "Drawdown",
+            visible="legendonly",
+            legendgroup="drawdown",
         )
 
         # =========================
         # 9. 添加累计收益曲线
         # =========================
-        fig.add_trace(
-            go.Scatter(
-                x=cumulative.index,
-                y=cumulative,
-                mode="lines",
-                fill="tozeroy",
-                fillgradient=dict(
-                    type="vertical",
-                    colorscale=[
-                        (0.0, "rgba(255, 255, 255, 0.0)"),
-                        (
-                            1.0,
-                            self._get_alpha_color(
-                                cfg.get("cumret-line-color"), alpha=0.1
-                            ),
-                        ),
-                    ],
-                ),
-                name="Cum. Return",
-                line=dict(color=cfg["cumret-line-color"], width=1),
-                hovertemplate=("<b>Cum. Return</b>: %{y:.2f}<br><extra></extra>"),
-                hoverlabel=dict(
-                    bgcolor=self.darken_color(hover_config["cumret-line-color"], theme),
-                    bordercolor=hover_config.get("hover-border-color"),
-                    font=dict(color=hover_config.get("hover-text-color")),
-                ),
-                yaxis="y2",
-            )
+        add_annual_series(
+            cumulative_y,
+            "Cum. Return",
+            cfg["cumret-line-color"],
+            "y2",
+            "Cum. Return",
         )
 
         # =========================
@@ -2428,6 +2562,21 @@ class ChartBuilder:
                     pos = pos.replace("top", "bottom")
             return pos
 
+        def fit_label_position(position, plot_x, label_text):
+            """Keep marker labels inside the chart's horizontal bounds."""
+            width_ratio = max(
+                0.18,
+                min(
+                    0.35,
+                    len(label_text) * base_font * 0.75 / max(client_width, 1),
+                ),
+            )
+            if plot_x <= width_ratio and position.endswith("left"):
+                return position[:-4] + "right"
+            if plot_x >= 1 - width_ratio and position.endswith("right"):
+                return position[:-5] + " left"
+            return position
+
         def get_compact_label(text, value, client_width):
             if client_width >= 550:
                 return f"{text}: {value:.2%}"
@@ -2445,13 +2594,9 @@ class ChartBuilder:
         if len(cumulative) > 0:
             cum_max_idx = cumulative.idxmax()
             cum_max_val = cumulative.max()
-            # cum_max_label_x = cumulative.index[
-            #     max(
-            #         int(len(cumulative) * (0.25 if scale >= 1 else 0.45)),
-            #         cumulative.index.get_loc(cum_max_idx),
-            #     )
-            # ]
             cum_max_label_x = cum_max_idx
+            cum_max_label_position_x = chart_position_for_date(cum_max_idx)
+            cum_max_label = f"Max: {cum_max_val:.2f}"
             last_x = cumulative.index[-1]
             last_y = cumulative.iloc[-1]
 
@@ -2465,6 +2610,7 @@ class ChartBuilder:
                     ),
                     cliponaxis=False,
                     showlegend=False,
+                    xaxis=chart_axis_for_date(last_x),
                     hovertemplate=f"<b>Latest Cum. Return</b>: {last_y:.2f}<br><extra></extra>",
                     hoverlabel=dict(
                         bgcolor=self.darken_color(
@@ -2485,15 +2631,18 @@ class ChartBuilder:
                     marker=dict(
                         symbol="circle", size=8 * scale, color=cfg["cumret-line-color"]
                     ),
-                    text=[f"Max: {cum_max_val:.2f}"],
-                    textposition=get_label_position(
-                        cum_max_idx, cumulative, cum_max_val
+                    text=[cum_max_label],
+                    textposition=fit_label_position(
+                        get_label_position(cum_max_idx, cumulative, cum_max_val),
+                        cum_max_label_position_x,
+                        cum_max_label,
                     ),
                     textfont=dict(
                         size=base_font, color=text_color, family=self.font_family
                     ),
                     cliponaxis=False,
                     showlegend=False,
+                    xaxis=chart_axis_for_date(cum_max_idx),
                     hovertemplate=f"<b>Max Cum. Return</b>: {cum_max_val:.2f}<br><extra></extra>",
                     hoverlabel=dict(
                         bgcolor=self.darken_color(
@@ -2515,10 +2664,13 @@ class ChartBuilder:
         if len(drawdown) > 0:
             max_dd_idx = drawdown.idxmin()
             max_dd_val = drawdown.min()
+            max_dd_x = max_dd_idx
+            max_dd_position_x = chart_position_for_date(max_dd_idx)
+            max_dd_label = get_compact_label("Max DD", max_dd_val, client_width)
 
             fig.add_trace(
                 go.Scatter(
-                    x=[max_dd_idx],
+                    x=[max_dd_x],
                     y=[max_dd_val],
                     mode="markers+text",
                     visible="legendonly",
@@ -2528,20 +2680,25 @@ class ChartBuilder:
                         size=8 * scale,
                         color=cfg["drawdown-line-color"],
                     ),
-                    text=[get_compact_label("Max DD", max_dd_val, client_width)],
-                    textposition=get_label_position(
-                        max_dd_idx,
-                        drawdown,
-                        max_dd_val,
-                        is_near_right_threshold=0,
-                        avoid_days=0,
-                        avoid_indices=avoid_list,
-                        avoid_scale_map=avoid_scale_map,
-                        data_series_map=data_series_map,
+                    text=[max_dd_label],
+                    textposition=fit_label_position(
+                        get_label_position(
+                            max_dd_idx,
+                            drawdown,
+                            max_dd_val,
+                            is_near_right_threshold=0,
+                            avoid_days=0,
+                            avoid_indices=avoid_list,
+                            avoid_scale_map=avoid_scale_map,
+                            data_series_map=data_series_map,
+                        ),
+                        max_dd_position_x,
+                        max_dd_label,
                     ),
                     textfont=dict(size=base_font, color=text_color),
                     cliponaxis=False,
                     showlegend=False,
+                    xaxis=chart_axis_for_date(max_dd_idx),
                     hovertemplate=f"<b>Max Drawdown</b>: {max_dd_val:.2%}<br><extra></extra>",
                     hoverlabel=dict(
                         bgcolor=self.darken_color(
@@ -2559,10 +2716,13 @@ class ChartBuilder:
                 w_30 = drawdown.iloc[-30:]
                 idx_30 = w_30.idxmin()
                 val_30 = w_30.loc[idx_30]
+                x_30 = idx_30
+                x_30_position = chart_position_for_date(idx_30)
+                label_30 = get_compact_label("30D DD", val_30, client_width)
                 if abs((idx_30 - max_dd_idx).days) > 10:
                     fig.add_trace(
                         go.Scatter(
-                            x=[idx_30],
+                            x=[x_30],
                             y=[val_30],
                             mode="markers+text",
                             visible="legendonly",
@@ -2572,19 +2732,24 @@ class ChartBuilder:
                                 size=6 * scale,
                                 color=cfg["drawdown-line-color"],
                             ),
-                            text=[get_compact_label("30D DD", val_30, client_width)],
-                            textposition=get_label_position(
-                                idx_30,
-                                drawdown,
-                                val_30,
-                                is_near_right_threshold=0.4,
-                                avoid_days=0,
-                                avoid_indices=avoid_list,
-                                avoid_scale_map=avoid_scale_map,
-                                data_series_map=data_series_map,
+                            text=[label_30],
+                            textposition=fit_label_position(
+                                get_label_position(
+                                    idx_30,
+                                    drawdown,
+                                    val_30,
+                                    is_near_right_threshold=0.4,
+                                    avoid_days=0,
+                                    avoid_indices=avoid_list,
+                                    avoid_scale_map=avoid_scale_map,
+                                    data_series_map=data_series_map,
+                                ),
+                                x_30_position,
+                                label_30,
                             ),
                             textfont=dict(size=base_font, color=text_color),
                             showlegend=False,
+                            xaxis=chart_axis_for_date(idx_30),
                             hovertemplate=f"<b>30D Max Drawdown</b>: {val_30:.2%}<br><extra></extra>",
                             hoverlabel=dict(
                                 bgcolor=self.darken_color(
@@ -2602,13 +2767,16 @@ class ChartBuilder:
                 w_120 = drawdown.iloc[-120:]
                 idx_120 = w_120.idxmin()
                 val_120 = w_120.loc[idx_120]
+                x_120 = idx_120
+                x_120_position = chart_position_for_date(idx_120)
+                label_120 = get_compact_label("120D DD", val_120, client_width)
                 if (
                     abs((idx_120 - max_dd_idx).days) > 10
                     and abs((idx_120 - idx_30).days) > 10
                 ):
                     fig.add_trace(
                         go.Scatter(
-                            x=[idx_120],
+                            x=[x_120],
                             y=[val_120],
                             mode="markers+text",
                             visible="legendonly",
@@ -2618,18 +2786,23 @@ class ChartBuilder:
                                 size=6 * scale,
                                 color=cfg["drawdown-line-color"],
                             ),
-                            text=[get_compact_label("120D DD", val_120, client_width)],
-                            textposition=get_label_position(
-                                idx_120,
-                                drawdown,
-                                val_120,
-                                is_near_right_threshold=0.4,
-                                avoid_indices=avoid_list,
-                                avoid_scale_map=avoid_scale_map,
-                                data_series_map=data_series_map,
+                            text=[label_120],
+                            textposition=fit_label_position(
+                                get_label_position(
+                                    idx_120,
+                                    drawdown,
+                                    val_120,
+                                    is_near_right_threshold=0.4,
+                                    avoid_indices=avoid_list,
+                                    avoid_scale_map=avoid_scale_map,
+                                    data_series_map=data_series_map,
+                                ),
+                                x_120_position,
+                                label_120,
                             ),
                             textfont=dict(size=base_font, color=text_color),
                             showlegend=False,
+                            xaxis=chart_axis_for_date(idx_120),
                             hovertemplate=f"<b>120D Max Drawdown</b>: {val_120:.2%}<br><extra></extra>",
                             hoverlabel=dict(
                                 bgcolor=self.darken_color(
@@ -2673,6 +2846,33 @@ class ChartBuilder:
         # 无缝垂直 Domain 计算
         TABLE_DOMAIN_Y = [0.0, round(table_y_ratio, 3)]
         CHART_DOMAIN_Y = [round(table_y_ratio + layout_cfg["gap_ratio"], 3), 1.0]
+
+        if split_history:
+            # Keep the split date in the gap and place a second date at the
+            # midpoint of the focus window. This balances the labels across
+            # both time segments instead of pinning one to the far right.
+            fig.add_annotation(
+                x=0.5,
+                y=(TABLE_DOMAIN_Y[1] + CHART_DOMAIN_Y[0]) / 2,
+                xref="paper",
+                yref="paper",
+                text=focus_start.strftime("%Y-%m"),
+                showarrow=False,
+                xanchor="center",
+                yanchor="middle",
+                font=dict(size=base_font, color=text_color, family=self.font_family),
+            )
+            fig.add_annotation(
+                x=chart_position_for_date(focus_mid),
+                y=(TABLE_DOMAIN_Y[1] + CHART_DOMAIN_Y[0]) / 2,
+                xref="paper",
+                yref="paper",
+                text=focus_mid.strftime("%Y-%m"),
+                showarrow=False,
+                xanchor="center",
+                yanchor="middle",
+                font=dict(size=base_font, color=text_color, family=self.font_family),
+            )
 
         # go.Table 的 SVG cell rect 在不同画布宽度下会受到裁切和缩放影响，
         # 因此用 paper 坐标直接绘制表格的水平边界，保证宽窄屏线宽一致。
@@ -2739,8 +2939,42 @@ class ChartBuilder:
         legend_absolute_x = 0
 
         # 更新图表布局
+        chart_divider_shapes = []
+        if split_history:
+            chart_divider_shapes.append(
+                dict(
+                    type="rect",
+                    xref="paper",
+                    yref="paper",
+                    x0=focus_x_start,
+                    x1=1.0,
+                    y0=CHART_DOMAIN_Y[0],
+                    y1=CHART_DOMAIN_Y[1],
+                    layer="below",
+                    line=dict(width=0),
+                    fillcolor=self._get_alpha_color(cfg["gridcolor"], alpha=0.035),
+                )
+            )
+            chart_divider_shapes.append(
+                dict(
+                    type="line",
+                    xref="paper",
+                    yref="paper",
+                    x0=0.5,
+                    x1=0.5,
+                    y0=CHART_DOMAIN_Y[0],
+                    y1=CHART_DOMAIN_Y[1],
+                    layer="below",
+                    line=dict(
+                        color=self._get_alpha_color(cfg["gridcolor"], alpha=0.6),
+                        width=1,
+                        dash="dot",
+                    ),
+                )
+            )
+
         fig.update_layout(
-            shapes=table_divider_shapes,
+            shapes=chart_divider_shapes + table_divider_shapes,
             dragmode=False,
             autosize=True,
             margin=dict(l=0, r=0, t=0, b=0),
@@ -2776,6 +3010,8 @@ class ChartBuilder:
             yaxis=dict(
                 title="",
                 side="right",
+                anchor="free",
+                position=1.0,
                 showgrid=False,
                 tickfont=dict(
                     size=base_font, color=text_color, family=self.font_family
@@ -2819,36 +3055,56 @@ class ChartBuilder:
             ),
             # X轴设置
             xaxis=dict(
-                # 动态提取缺失日期并应用 rangebreaks（兼容字符串/datetime，自动忽略非交易日）
-                rangebreaks=[
-                    dict(
-                        values=pd.date_range(pnl.index.min(), pnl.index.max(), freq="D")
-                        .strftime("%Y-%m-%d")
-                        .difference(pnl.index.strftime("%Y-%m-%d"))
-                    )
-                ],
+                type="date",
                 gridcolor=cfg["gridcolor"],
                 tickfont=dict(
                     size=base_font, color=text_color, family=self.font_family
                 ),
-                domain=[0.0, 1.0],  # 图表横向占满
+                domain=xaxis_domain,
                 rangeslider=dict(visible=False),
                 showline=False,
                 linewidth=1,
                 linecolor=cfg["border-color"],
                 mirror=False,
                 anchor="y",
-                tickformat="%Y-%m",
-                hoverformat="%Y-%m-%d",
+                tickmode="array",
+                tickvals=xaxis_tickvals,
+                ticktext=xaxis_ticktext,
+                ticklabeloverflow="allow",
                 showgrid=False,
                 gridwidth=0.5,
+                showspikes=False,
                 position=0.0,
                 side="bottom",
-                range=[
-                    pnl.index.min() - timedelta(days=0.5),
-                    pnl.index.max() + timedelta(days=0.5),
-                ],
-                nticks=6,
+                range=xaxis_range,
+                rangebreaks=date_rangebreaks,
+                hoverformat="%Y-%m-%d",
+            ),
+            xaxis2=dict(
+                type="date",
+                domain=xaxis2_domain or [0.0, 1.0],
+                tickfont=dict(
+                    size=base_font, color=text_color, family=self.font_family
+                ),
+                rangeslider=dict(visible=False),
+                showline=False,
+                linewidth=1,
+                linecolor=cfg["border-color"],
+                mirror=False,
+                anchor="y",
+                tickmode="array",
+                tickvals=xaxis2_tickvals,
+                ticktext=xaxis2_ticktext,
+                ticklabeloverflow="allow",
+                showgrid=False,
+                gridwidth=0.5,
+                showspikes=False,
+                position=0.0,
+                side="bottom",
+                range=xaxis2_range,
+                rangebreaks=date_rangebreaks,
+                hoverformat="%Y-%m-%d",
+                visible=split_history,
             ),
         )
 

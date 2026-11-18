@@ -5,6 +5,8 @@
 from dash import Output, Input, MATCH, callback, no_update
 import plotly.graph_objects as go
 from finance.dashreport.data_loader import ReportDataLoader
+from finance.utility.toolkit import ToolKit
+import time
 
 
 class ChartCallback:
@@ -200,9 +202,6 @@ class ChartCallback:
                     datasets=datasets,
                 )
 
-                # ===== 关键：总是添加微小延迟 =====
-                import time
-
                 time.sleep(0.1)  # 100ms延迟，确保loading有显示时间
 
                 # ===== 图表分发 =====
@@ -221,6 +220,9 @@ class ChartCallback:
                         pnl=pnl,
                         theme=theme,
                         client_width=client_width,
+                        chart_time_range=ToolKit.get_config(
+                            "chart_display.chart_time_range", default=120
+                        ),
                     )
                 elif chart_type == "heatmap":
                     df = data_bundle.get("heatmap")
