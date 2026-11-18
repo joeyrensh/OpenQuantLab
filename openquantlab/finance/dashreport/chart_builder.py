@@ -2445,12 +2445,13 @@ class ChartBuilder:
         if len(cumulative) > 0:
             cum_max_idx = cumulative.idxmax()
             cum_max_val = cumulative.max()
-            cum_max_label_x = cumulative.index[
-                max(
-                    int(len(cumulative) * (0.25 if scale >= 1 else 0.45)),
-                    cumulative.index.get_loc(cum_max_idx),
-                )
-            ]
+            # cum_max_label_x = cumulative.index[
+            #     max(
+            #         int(len(cumulative) * (0.25 if scale >= 1 else 0.45)),
+            #         cumulative.index.get_loc(cum_max_idx),
+            #     )
+            # ]
+            cum_max_label_x = cum_max_idx
             last_x = cumulative.index[-1]
             last_y = cumulative.iloc[-1]
 
