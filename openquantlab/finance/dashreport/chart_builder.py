@@ -2728,7 +2728,7 @@ class ChartBuilder:
                             visible="legendonly",
                             legendgroup="drawdown",
                             marker=dict(
-                                symbol="diamond",
+                                symbol="circle",
                                 size=6 * scale,
                                 color=cfg["drawdown-line-color"],
                             ),
@@ -2783,7 +2783,7 @@ class ChartBuilder:
                             visible="legendonly",
                             legendgroup="drawdown",
                             marker=dict(
-                                symbol="diamond",
+                                symbol="circle",
                                 size=6 * scale,
                                 color=cfg["drawdown-line-color"],
                             ),
