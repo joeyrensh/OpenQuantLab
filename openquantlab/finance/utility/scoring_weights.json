@@ -94,7 +94,11 @@
             "trailing_tp_tier_2_drawback": 0.3,
             "trailing_tp_tier_3_threshold": 0.2,
             "trailing_tp_tier_3_drawback": 0.5
-        }
+        },
+        "cash_multipliers": {
+            "main_strategy": 1.0,
+            "dynamic_backtest": 1.5
+        }        
     },
     "schedule_settings": {
         "cn_stock_cron": "20 15 * * *",

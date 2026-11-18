@@ -1396,8 +1396,70 @@ def create_layout(app: Dash):
         ]
     )
 
+    cash_multiplier_cfg = (
+        init_cfg.get("backtest_settings", {}).get("cash_multipliers") or {}
+    )
+    startup_cash_card = dbc.Card(
+        [
+            dbc.CardHeader(
+                html.Label(
+                    "Startup Cash Multipliers",
+                    className="fs-5 fw-bold text-dark l1_label",
+                )
+            ),
+            dbc.CardBody(
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.Label(
+                                    "Main Strategy (CN / US)",
+                                    className="mb-1 l2_label text-truncate",
+                                ),
+                                dbc.Input(
+                                    id="input_bt_main_cash_multiplier",
+                                    type="number",
+                                    min=0.1,
+                                    max=10,
+                                    step=0.1,
+                                    value=cash_multiplier_cfg.get("main_strategy")
+                                    or 1.0,
+                                    className="custom-grp-input",
+                                ),
+                            ],
+                            style={"flex": "1"},
+                        ),
+                        html.Div(
+                            [
+                                html.Label(
+                                    "Dynamic & Backtest Pages",
+                                    className="mb-1 l2_label text-truncate",
+                                ),
+                                dbc.Input(
+                                    id="input_bt_dynamic_backtest_cash_multiplier",
+                                    type="number",
+                                    min=0.1,
+                                    max=10,
+                                    step=0.1,
+                                    value=cash_multiplier_cfg.get("dynamic_backtest")
+                                    or 1.5,
+                                    className="custom-grp-input",
+                                ),
+                            ],
+                            style={"flex": "1"},
+                        ),
+                    ],
+                    className="grp-inputs-row",
+                ),
+                className="py-3 card-body",
+            ),
+        ],
+        className="h-100 shadow-sm border-0 rounded-3 mb-4 weight-config-card",
+    )
+
     strategy_rows = html.Div(
         [
+            dbc.Row([dbc.Col(startup_cash_card, lg=12, md=12)]),
             dbc.Row(
                 [
                     dbc.Col(build_stock_filter_card(init_cfg), lg=6, md=12),
@@ -1697,6 +1759,10 @@ def register_callbacks(app: Dash):
             Input("etf_n_groups", "value"),
             Input("etf_top_n", "value"),
         ]
+        + [
+            Input("input_bt_main_cash_multiplier", "value"),
+            Input("input_bt_dynamic_backtest_cash_multiplier", "value"),
+        ]
         + bt_inputs
         + schedule_inputs
     )
@@ -1718,6 +1784,10 @@ def register_callbacks(app: Dash):
             Output("etf_min_threshold", "value"),
             Output("etf_n_groups", "value"),
             Output("etf_top_n", "value"),
+        ]
+        + [
+            Output("input_bt_main_cash_multiplier", "value"),
+            Output("input_bt_dynamic_backtest_cash_multiplier", "value"),
         ]
         + bt_outputs
         + schedule_outputs
@@ -1806,6 +1876,11 @@ def register_callbacks(app: Dash):
         ]
 
         bt_cfg = def_cfg.get("backtest_settings", {})
+        cash_multiplier_cfg = bt_cfg.get("cash_multipliers", {})
+        cash_multiplier_vals = [
+            cash_multiplier_cfg.get("main_strategy", 1.0),
+            cash_multiplier_cfg.get("dynamic_backtest", 1.5),
+        ]
         bt_macd = [bt_cfg.get("macd", {}).get(k) for k in BT_MACD_KEYS]
         bt_ma = [bt_cfg.get("moving_average", {}).get(k) for k in BT_MA_KEYS]
         bt_vol = [bt_cfg.get("volume_ma", {}).get(k) for k in BT_VOL_KEYS]
@@ -1826,6 +1901,7 @@ def register_callbacks(app: Dash):
             + stk_vals
             + cht_vals
             + grp_vals
+            + cash_multiplier_vals
             + bt_macd
             + bt_ma
             + bt_vol
@@ -1877,6 +1953,9 @@ def register_callbacks(app: Dash):
         ) = args[idx : idx + 8]
         idx += 8
 
+        main_cash_multiplier, dynamic_backtest_cash_multiplier = args[idx : idx + 2]
+        idx += 2
+
         bt_macd_vals = args[idx : idx + len(BT_MACD_KEYS)]
         idx += len(BT_MACD_KEYS)
 
@@ -1925,6 +2004,10 @@ def register_callbacks(app: Dash):
         }
 
         current_cfg["backtest_settings"] = {
+            "cash_multipliers": {
+                "main_strategy": main_cash_multiplier,
+                "dynamic_backtest": dynamic_backtest_cash_multiplier,
+            },
             "macd": dict(zip(BT_MACD_KEYS, bt_macd_vals)),
             "moving_average": dict(zip(BT_MA_KEYS, bt_ma_vals)),
             "volume_ma": dict(zip(BT_VOL_KEYS, bt_vol_vals)),

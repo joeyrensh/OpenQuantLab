@@ -50,6 +50,26 @@ class BacktraderExec:
         cap_flow = bt_cfg.get("capital_flow", {})
         ma_sqz = bt_cfg.get("ma_convergence", {})
         exit_rules = bt_cfg.get("exit_rules", {})
+        cash_multipliers = bt_cfg.get("cash_multipliers") or {}
+        extended_cash_market = self.test or self.market in (
+            "cn_dynamic",
+            "us_dynamic",
+        )
+        cash_multiplier_key = (
+            "dynamic_backtest" if extended_cash_market else "main_strategy"
+        )
+        default_cash_multiplier = 1.5 if extended_cash_market else 1.0
+        try:
+            startup_cash_multiplier = float(
+                cash_multipliers.get(cash_multiplier_key, default_cash_multiplier)
+            )
+            if (
+                not np.isfinite(startup_cash_multiplier)
+                or startup_cash_multiplier <= 0
+            ):
+                startup_cash_multiplier = default_cash_multiplier
+        except (TypeError, ValueError):
+            startup_cash_multiplier = default_cash_multiplier
 
         return {
             # MACD
@@ -97,6 +117,8 @@ class BacktraderExec:
             "trailing_tp_tier_3_drawback": exit_rules.get(
                 "trailing_tp_tier_3_drawback", 0.5
             ),
+            # Internal startup-cash setting; popped before passing params to the strategy.
+            "_startup_cash_multiplier": startup_cash_multiplier,
         }
 
     def run_strategy(self):
@@ -107,6 +129,9 @@ class BacktraderExec:
 
         try:
             dynamic_params = self._get_bt_params()
+            startup_cash_multiplier = dynamic_params.pop(
+                "_startup_cash_multiplier"
+            )
             cerebro.addstrategy(
                 GlobalStrategy,
                 trade_date=self.trade_date,
@@ -152,8 +177,7 @@ class BacktraderExec:
                     cash_per_stock = 10000
                 total_cash_needed += cash_per_stock
 
-            if self.test or self.market in ("cn_dynamic", "us_dynamic"):
-                total_cash_needed *= 1.5
+            total_cash_needed *= startup_cash_multiplier
 
             cerebro.broker.setcash(total_cash_needed)
 
