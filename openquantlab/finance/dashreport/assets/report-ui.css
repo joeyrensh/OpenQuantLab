@@ -2,13 +2,13 @@
    Keep chart sizing and the light/dark theme selection in their existing owners. */
 :root {
   --report-card-shadow: 0 3px 14px rgba(31, 60, 100, 0.08);
-  --progress-bar-length: 102px;
+  --progress-bar-length: 100%;
   --track-height-px: 4px;
+  --ratio-progress-track-color: color-mix(in srgb, var(--text-color) 16%, transparent);
   --ratio-progress-label-gap: 1px;
   --ratio-progress-cell-padding-inline: 2px;
-  --ratio-progress-cell-padding-block: 4px;
+  --ratio-progress-cell-padding-block: 0px;
   --ratio-progress-track-start: 2px;
-  --ratio-progress-min-track-width: 28px;
   --value-bottom-line-height: 2px;
   --value-bottom-line-width: 80%;
   --value-cell-inline-padding: 2px;
@@ -24,7 +24,6 @@
 
 @media (max-width: 550px) {
   :root {
-    --progress-bar-length: 82px;
     --track-height-px: 4px;
   }
 }
@@ -278,6 +277,11 @@
   border: 0 !important;
   border-bottom: 1px solid var(--gridcolor) !important;
   vertical-align: middle !important;
+}
+
+/* Ratio progress cells put the label above the track without naming columns. */
+#page-content .default-table .dash-spreadsheet-inner td[style*="ratio-progress-track-color"] {
+  vertical-align: top !important;
 }
 
 #page-content .default-table .dash-spreadsheet-inner th .column-header-name,

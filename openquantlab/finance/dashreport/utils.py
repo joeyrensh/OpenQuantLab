@@ -163,22 +163,17 @@ _RATIO_BAR_STYLE = {
     "cell_padding_block": "var(--ratio-progress-cell-padding-block)",
     "track_height_px": "var(--track-height-px)",
     "track_start": "var(--ratio-progress-track-start)",
-    "min_track_width": "var(--ratio-progress-min-track-width)",
 }
 
 
 def _ratio_bar_min_width(label_width_em):
-    """Return a CSS-sized minimum width while keeping visual tuning in CSS."""
+    """Reserve room for the widest label or the minimum progress track."""
     style = _RATIO_BAR_STYLE
     return (
         "max(var(--progress-bar-length), calc({label_width:.3f}em + "
-        "{track_start} + {min_track_width} + {label_gap} + "
-        "{cell_padding_inline}))"
+        "{cell_padding_inline} + {cell_padding_inline}))"
     ).format(
         label_width=label_width_em,
-        track_start=style["track_start"],
-        min_track_width=style["min_track_width"],
-        label_gap=style["label_gap"],
         cell_padding_inline=style["cell_padding_inline"],
     )
 
@@ -194,6 +189,10 @@ def data_bars(df, column, source_values=None):
     cell_padding_block = _RATIO_BAR_STYLE["cell_padding_block"]
     track_height_px = _RATIO_BAR_STYLE["track_height_px"]
     track_start = _RATIO_BAR_STYLE["track_start"]
+    track_width = "calc(100% - {start} - {padding})".format(
+        start=track_start,
+        padding=cell_padding_inline,
+    )
 
     values = pd.to_numeric(
         df[column] if source_values is None else source_values, errors="coerce"
@@ -224,29 +223,35 @@ def data_bars(df, column, source_values=None):
             lower=numeric_value - tolerance,
             upper=numeric_value + tolerance,
         )
-        # The background is clipped to the content box. Its left padding creates
-        # the track inset; the percentage then scales within the remaining track.
-        gradient = """
-            linear-gradient(90deg,
-                {fill_color} 0%,
-                {fill_color} {percentage:.4f}%,
-                transparent {percentage:.4f}%,
-                transparent 100%)
-        """.format(
-            fill_color=fill_color,
-            percentage=percentage,
-        )
-        # Put size, position, and repeat in the same shorthand. Dash's table
-        # conditional styles can otherwise reset background-size after the
-        # separate longhand is applied.
-        background = (
-            "{gradient} left center / calc(100% - {label_width:.3f}em - "
-            "{gap}) {height} no-repeat"
+        # Draw a theme-aware gray track below the label, then overlay the
+        # directional fill. Positive values scale to the positive maximum;
+        # negative values scale by absolute value to the negative minimum.
+        fill_gradient = (
+            "linear-gradient(90deg, {fill} 0%, {fill} {pct:.4f}%, "
+            "transparent {pct:.4f}%, transparent 100%)"
         ).format(
-            gradient=gradient.strip(),
-            label_width=label_width_em,
-            gap=label_gap,
+            fill=fill_color,
+            pct=percentage,
+        )
+        track_gradient = (
+            "linear-gradient(90deg, var(--ratio-progress-track-color) 0%, "
+            "var(--ratio-progress-track-color) 100%)"
+        )
+        background = (
+            "{fill} left {start} bottom {bottom} / {width} {height} no-repeat, "
+            "{track} left {start} bottom {bottom} / {width} {height} no-repeat"
+        ).format(
+            fill=fill_gradient,
+            track=track_gradient,
+            start=track_start,
+            bottom=cell_padding_block,
+            width=track_width,
             height=track_height_px,
+        )
+        padding_bottom = "calc({height} + {gap} + {padding})".format(
+            height=track_height_px,
+            gap=label_gap,
+            padding=cell_padding_block,
         )
         return {
             "if": {
@@ -254,15 +259,16 @@ def data_bars(df, column, source_values=None):
                 "column_id": column,
             },
             "background": background,
-            "backgroundOrigin": "content-box",
-            "backgroundClip": "content-box",
+            "backgroundOrigin": "padding-box",
+            "backgroundClip": "padding-box",
             "minWidth": _ratio_bar_min_width(label_width_em),
             "borderRadius": "0",
-            "textAlign": "right",
+            "textAlign": "left",
+            "verticalAlign": "top",
             "paddingLeft": track_start,
             "paddingRight": cell_padding_inline,
-            "paddingBottom": cell_padding_block,
             "paddingTop": cell_padding_block,
+            "paddingBottom": padding_bottom,
         }
 
     for value in values:
