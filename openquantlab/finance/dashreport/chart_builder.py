@@ -2729,7 +2729,7 @@ class ChartBuilder:
                             legendgroup="drawdown",
                             marker=dict(
                                 symbol="circle",
-                                size=6 * scale,
+                                size=8 * scale,
                                 color=cfg["drawdown-line-color"],
                             ),
                             text=[label_30],
@@ -2784,7 +2784,7 @@ class ChartBuilder:
                             legendgroup="drawdown",
                             marker=dict(
                                 symbol="circle",
-                                size=6 * scale,
+                                size=8 * scale,
                                 color=cfg["drawdown-line-color"],
                             ),
                             text=[label_120],
