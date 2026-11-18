@@ -264,7 +264,7 @@ def data_bars(df, column, source_values=None):
             "minWidth": _ratio_bar_min_width(label_width_em),
             "borderRadius": "0",
             "textAlign": "left",
-            "verticalAlign": "top",
+            "verticalAlign": "middle",
             "paddingLeft": track_start,
             "paddingRight": cell_padding_inline,
             "paddingTop": cell_padding_block,

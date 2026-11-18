@@ -281,7 +281,7 @@
 
 /* Ratio progress cells put the label above the track without naming columns. */
 #page-content .default-table .dash-spreadsheet-inner td[style*="ratio-progress-track-color"] {
-  vertical-align: top !important;
+  vertical-align: middle !important;
 }
 
 #page-content .default-table .dash-spreadsheet-inner th .column-header-name,
