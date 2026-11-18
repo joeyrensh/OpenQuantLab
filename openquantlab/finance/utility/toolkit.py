@@ -571,24 +571,17 @@ class ToolKit:
     # area chart按照y轴渐变透明度填充
     @staticmethod
     def create_line(*args, second_plot_type="area"):
-        # ===============================
-        # 1. 配置（仅保留渐变美化，线条参数与原版完全一致，确保绝对安全）
-        # ===============================
         config = {
             "up_color": "#ff4444",
             "down_color": "#0d876d",
-            "line_width": 2,
-            "secondary_line_width": 0.6,
+            "line_width": 2 * 120 / 72,
+            "secondary_line_width": 0.6 * 120 / 72,
             "secondary_line_alpha": 0.9,
-            "fill_alpha_range": (0.02, 0.65),  # 提升渐变通透感
+            "fill_alpha_range": (0.02, 0.65),
             "alpha_power": 2.0,
-            "marker_size": 3.5,
-            "zero_line_alpha": 0,
+            "marker_radius": (3.5 * 120 / 72) / 2,
         }
 
-        # ===============================
-        # 2. 数据解析
-        # ===============================
         if len(args) == 1:
             datasets = [list(args[0])]
             is_single = True
@@ -610,131 +603,93 @@ class ToolKit:
             min_len = min(len(datasets[0]), len(datasets[1]))
             datasets = [d[:min_len] for d in datasets]
 
+        if not datasets[0]:
+            return ""
+
         is_up = datasets[0][-1] >= datasets[0][-2] if len(datasets[0]) > 1 else True
         main_color = config["up_color"] if is_up else config["down_color"]
         sec_color = config["up_color"] if is_up else config["down_color"]
 
-        # ===============================
-        # 3. 画布
-        # ===============================
-        fig, ax1 = plt.subplots(figsize=(2.5, 1), facecolor="none")
-        fig.patch.set_alpha(0)
-
-        if not is_single:
-            ax2 = ax1.twinx()
-            ax1.set_zorder(ax2.get_zorder() + 1)
-            ax1.patch.set_visible(False)
-            ax2.patch.set_alpha(0)
-            ax2.set_zorder(ax1.get_zorder() - 1)
-
-        # ===============================
-        # 4. Y 轴范围
-        # ===============================
-        def set_ylim(ax, y):
-            y = np.asarray(y)
-            ymin, ymax = np.min(y), np.max(y)
-            span = max(ymax - ymin, 1e-3)
-            pad = span * 0.08
-            ax.set_ylim(ymin - pad, ymax + pad)
-
-        set_ylim(ax1, datasets[0])
-        if not is_single:
-            set_ylim(ax2, datasets[1])
-
-        # ===============================
-        # 5. 主线
-        # ===============================
-        x = np.arange(len(datasets[0]))
-        ax1.plot(x, datasets[0], color=main_color, lw=config["line_width"], zorder=4)
-        ax1.scatter(
-            x[-1],
-            datasets[0][-1],
-            s=config["marker_size"] ** 2,
-            color=main_color,
-            edgecolor=main_color,
-            linewidth=0.4,
-            zorder=5,
+        # Match the original 2.5 x 1 inch canvas rendered at 120 dpi.
+        width, height = 300, 120
+        plot_top, plot_bottom = 2.0, height - 2.0
+        point_count = len(datasets[0])
+        x_values = (
+            [width / 2]
+            if point_count == 1
+            else [i * width / (point_count - 1) for i in range(point_count)]
         )
 
-        # ===============================
-        # 6. 第二组：area
-        # ===============================
+        def map_y(values, value):
+            low, high = min(values), max(values)
+            span = max(high - low, 1e-3)
+            lower, upper = low - span * 0.08, high + span * 0.08
+            return plot_top + (upper - value) / (upper - lower) * (
+                plot_bottom - plot_top
+            )
+
+        main_points = [
+            (x, map_y(datasets[0], y)) for x, y in zip(x_values, datasets[0])
+        ]
+        main_points_attr = " ".join(f"{x:.2f},{y:.2f}" for x, y in main_points)
+        last_x, last_y = main_points[-1]
+
+        svg_parts = [
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+            f'height="{height}" viewBox="0 0 {width} {height}" '
+            'preserveAspectRatio="xMidYMid meet">',
+            '<defs><clipPath id="plot"><rect width="300" height="120"/></clipPath>',
+        ]
+
         if not is_single and second_plot_type == "area":
-            ax = ax2
-            y = np.asarray(datasets[1])
-            ymin, ymax = ax.get_ylim()
-
-            # ---- RGBA 渐变纵向 ----
-            grad_steps = 256
-            a_min, a_max = config["fill_alpha_range"]
+            volume = datasets[1]
+            base_y = map_y(volume, 0)
+            area_y = [map_y(volume, y) for y in volume]
+            area_points = " ".join(f"{x:.2f},{y:.2f}" for x, y in zip(x_values, area_y))
+            alpha_min, alpha_max = config["fill_alpha_range"]
             power = config["alpha_power"]
-
-            t = np.linspace(0, 1, grad_steps)
-            alpha = a_min + (a_max - a_min) * (t**power)
-
-            r, g, b = mcolors.to_rgb(sec_color)
-            grad = np.zeros((grad_steps, 1, 4))
-            grad[..., 0] = r
-            grad[..., 1] = g
-            grad[..., 2] = b
-            grad[..., 3] = alpha[:, None]
-
-            img = ax.imshow(
-                grad,
-                extent=[x[0], x[-1], 0, np.max(y)],
-                origin="lower",
-                aspect="auto",
-                zorder=2,
+            gradient_stops = []
+            for index in range(5):
+                position = index / 4
+                alpha = alpha_min + (alpha_max - alpha_min) * (position**power)
+                gradient_stops.append(
+                    f'<stop offset="{position:.2f}" stop-color="{sec_color}" '
+                    f'stop-opacity="{alpha:.3f}"/>'
+                )
+            svg_parts.extend(
+                [
+                    '<linearGradient id="volume-fill" gradientUnits="userSpaceOnUse" '
+                    f'x1="0" y1="{base_y:.2f}" '
+                    f'x2="0" y2="{map_y(volume, max(volume)):.2f}">'
+                    + "".join(gradient_stops)
+                    + "</linearGradient></defs>",
+                    '<g clip-path="url(#plot)">',
+                    f'<polygon points="{x_values[0]:.2f},{base_y:.2f} '
+                    f'{area_points} {x_values[-1]:.2f},{base_y:.2f}" '
+                    'fill="url(#volume-fill)"/>',
+                    f'<polyline points="{area_points}" fill="none" '
+                    f'stroke="{sec_color}" stroke-width="{config["secondary_line_width"]:.2f}" '
+                    f'stroke-opacity="{config["secondary_line_alpha"]:.2f}" '
+                    'stroke-linejoin="round" stroke-linecap="round"/>',
+                ]
             )
+        else:
+            svg_parts.append('</defs><g clip-path="url(#plot)">')
 
-            # ---- 用 area 路径裁剪 ----
-            area = ax.fill_between(
-                x, y, 0, facecolor="none", edgecolor="none", zorder=2
-            )
-            img.set_clip_path(area.get_paths()[0], transform=ax.transData)
-
-            # 轮廓线
-            ax.plot(
-                x,
-                y,
-                color=sec_color,
-                lw=config["secondary_line_width"],
-                alpha=config["secondary_line_alpha"],
-                zorder=3,
-            )
-
-        # ===============================
-        # 7. 修饰
-        # ===============================
-        ax1.axis("off")
-        if not is_single:
-            ax2.axis("off")
-
-        ax1.set_xlim(x[0], x[-1])
-        if not is_single:
-            ax2.set_xlim(x[0], x[-1])
-
-        plt.tight_layout(pad=0)
-        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-
-        # ===============================
-        # 8. 导出
-        # ===============================
-        buf = BytesIO()
-        fig.savefig(
-            buf,
-            format="png",
-            dpi=120,
-            transparent=True,
-            bbox_inches="tight",
-            pad_inches=0,
+        svg_parts.extend(
+            [
+                f'<polyline points="{main_points_attr}" fill="none" '
+                f'stroke="{main_color}" stroke-width="{config["line_width"]:.2f}" '
+                'stroke-linejoin="round" stroke-linecap="round"/>',
+                f'<circle cx="{last_x:.2f}" cy="{last_y:.2f}" '
+                f'r="{config["marker_radius"]:.2f}" fill="{main_color}" '
+                f'stroke="{main_color}" stroke-width="{0.4 * 120 / 72:.2f}"/>',
+                "</g></svg>",
+            ]
         )
-        plt.close(fig)
-
-        # 核心修复：100% 保持单行字符串格式返回，拒绝换行与多余样式，防止上游 Markdown/AIO 解析器产生 unpack 报错
-        return (
-            f'<img src="data:image/png;base64,{b64encode(buf.getvalue()).decode()}" />'
-        )
+        svg = "".join(svg_parts)
+        encoded_svg = b64encode(svg.encode("utf-8")).decode("ascii")
+        return f'<img src="data:image/svg+xml;base64,{encoded_svg}" />'
 
     @staticmethod
     def get_config(path: str = None, default: Any = None) -> Any:
