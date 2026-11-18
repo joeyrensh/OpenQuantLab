@@ -574,12 +574,12 @@ class ToolKit:
         config = {
             "up_color": "#ff4444",
             "down_color": "#0d876d",
-            "line_width": 2 * 120 / 72,
-            "secondary_line_width": 0.6 * 120 / 72,
+            "line_width": 4.0,
+            "secondary_line_width": 2.0,
             "secondary_line_alpha": 0.9,
             "fill_alpha_range": (0.02, 0.65),
             "alpha_power": 2.0,
-            "marker_radius": (3.5 * 120 / 72) / 2,
+            "marker_radius": 8.0,
         }
 
         if len(args) == 1:
