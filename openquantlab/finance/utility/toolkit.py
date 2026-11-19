@@ -580,8 +580,8 @@ class ToolKit:
             "volume_color": "#667085",
             "volume_line_width": 2.1,
             "volume_fill_alpha": 0.1,
-            "volume_band_height": 24.0,
-            "volume_gap": 8.0,
+            "volume_band_height": 40.0,
+            "volume_gap": 4.0,
             "right_margin": 7.0,
         }
 
