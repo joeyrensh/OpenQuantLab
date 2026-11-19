@@ -574,12 +574,15 @@ class ToolKit:
         config = {
             "up_color": "#ff4444",
             "down_color": "#0d876d",
-            "line_width": 4.0,
-            "secondary_line_width": 2.0,
-            "secondary_line_alpha": 0.9,
-            "fill_alpha_range": (0.02, 0.65),
-            "alpha_power": 2.0,
-            "marker_radius": 8.0,
+            "line_width": 3.6,
+            "marker_radius": 4.8,
+            "zero_axis_color": "#667085",
+            "volume_color": "#667085",
+            "volume_line_width": 2.1,
+            "volume_fill_alpha": 0.1,
+            "volume_band_height": 24.0,
+            "volume_gap": 8.0,
+            "right_margin": 7.0,
         }
 
         if len(args) == 1:
@@ -606,84 +609,139 @@ class ToolKit:
         if not datasets[0]:
             return ""
 
-        is_up = datasets[0][-1] >= datasets[0][-2] if len(datasets[0]) > 1 else True
-        main_color = config["up_color"] if is_up else config["down_color"]
-        sec_color = config["up_color"] if is_up else config["down_color"]
-
-        # Match the original 2.5 x 1 inch canvas rendered at 120 dpi.
+        # Keep the original compact sparkline canvas dimensions.
         width, height = 300, 120
-        plot_top, plot_bottom = 2.0, height - 2.0
+        volume_bottom = height - 4.0
+        volume_top = volume_bottom - config["volume_band_height"]
+        plot_top = 4.0
+        plot_bottom = volume_top - config["volume_gap"]
+        plot_right = width - config["right_margin"]
         point_count = len(datasets[0])
         x_values = (
-            [width / 2]
+            [plot_right / 2]
             if point_count == 1
-            else [i * width / (point_count - 1) for i in range(point_count)]
+            else [i * plot_right / (point_count - 1) for i in range(point_count)]
         )
 
-        def map_y(values, value):
-            low, high = min(values), max(values)
-            span = max(high - low, 1e-3)
-            lower, upper = low - span * 0.08, high + span * 0.08
-            return plot_top + (upper - value) / (upper - lower) * (
+        pnl_values = datasets[0]
+        pnl_low = min(min(pnl_values), 0.0)
+        pnl_high = max(max(pnl_values), 0.0)
+        pnl_span = max(pnl_high - pnl_low, 1e-3)
+        pnl_lower = pnl_low - pnl_span * 0.08
+        pnl_upper = pnl_high + pnl_span * 0.08
+
+        def map_pnl_y(value):
+            return plot_top + (pnl_upper - value) / (pnl_upper - pnl_lower) * (
                 plot_bottom - plot_top
             )
 
-        main_points = [
-            (x, map_y(datasets[0], y)) for x, y in zip(x_values, datasets[0])
-        ]
-        main_points_attr = " ".join(f"{x:.2f},{y:.2f}" for x, y in main_points)
+        main_points = [(x, map_pnl_y(y)) for x, y in zip(x_values, pnl_values)]
         last_x, last_y = main_points[-1]
+        last_value = pnl_values[-1]
+        last_color = (
+            config["up_color"]
+            if last_value > 0
+            else config["down_color"]
+            if last_value < 0
+            else config["zero_axis_color"]
+        )
 
         svg_parts = [
             f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
             f'height="{height}" viewBox="0 0 {width} {height}" '
             'preserveAspectRatio="xMidYMid meet">',
-            '<defs><clipPath id="plot"><rect width="300" height="120"/></clipPath>',
+            '<defs><clipPath id="plot"><rect width="300" height="120"/></clipPath></defs>',
+            '<g clip-path="url(#plot)">',
         ]
 
-        if not is_single and second_plot_type == "area":
-            volume = datasets[1]
-            base_y = map_y(volume, 0)
-            area_y = [map_y(volume, y) for y in volume]
-            area_points = " ".join(f"{x:.2f},{y:.2f}" for x, y in zip(x_values, area_y))
-            alpha_min, alpha_max = config["fill_alpha_range"]
-            power = config["alpha_power"]
-            gradient_stops = []
-            for index in range(5):
-                position = index / 4
-                alpha = alpha_min + (alpha_max - alpha_min) * (position**power)
-                gradient_stops.append(
-                    f'<stop offset="{position:.2f}" stop-color="{sec_color}" '
-                    f'stop-opacity="{alpha:.3f}"/>'
-                )
-            svg_parts.extend(
-                [
-                    '<linearGradient id="volume-fill" gradientUnits="userSpaceOnUse" '
-                    f'x1="0" y1="{base_y:.2f}" '
-                    f'x2="0" y2="{map_y(volume, max(volume)):.2f}">'
-                    + "".join(gradient_stops)
-                    + "</linearGradient></defs>",
-                    '<g clip-path="url(#plot)">',
-                    f'<polygon points="{x_values[0]:.2f},{base_y:.2f} '
-                    f'{area_points} {x_values[-1]:.2f},{base_y:.2f}" '
-                    'fill="url(#volume-fill)"/>',
-                    f'<polyline points="{area_points}" fill="none" '
-                    f'stroke="{sec_color}" stroke-width="{config["secondary_line_width"]:.2f}" '
-                    f'stroke-opacity="{config["secondary_line_alpha"]:.2f}" '
-                    'stroke-linejoin="round" stroke-linecap="round"/>',
+        # A volume line and faint area use their own lower band and square-root
+        # scaling, so volume remains legible without bars dominating the PnL.
+        if not is_single:
+            volume = [max(value, 0.0) for value in datasets[1]]
+            max_volume = max(volume, default=0.0)
+            if max_volume > 0:
+                volume_points = [
+                    (
+                        x,
+                        volume_bottom
+                        - (value / max_volume) ** 0.5 * (volume_bottom - volume_top),
+                    )
+                    for x, value in zip(x_values, volume)
                 ]
-            )
-        else:
-            svg_parts.append('</defs><g clip-path="url(#plot)">')
+                volume_points_attr = " ".join(
+                    f"{x:.2f},{y:.2f}" for x, y in volume_points
+                )
+                volume_area_points = (
+                    f"{x_values[0]:.2f},{volume_bottom:.2f} "
+                    f"{volume_points_attr} "
+                    f"{x_values[-1]:.2f},{volume_bottom:.2f}"
+                )
+                svg_parts.extend(
+                    [
+                        f'<polygon points="{volume_area_points}" '
+                        f'fill="{config["volume_color"]}" '
+                        f'fill-opacity="{config["volume_fill_alpha"]:.2f}"/>',
+                        f'<polyline points="{volume_points_attr}" fill="none" '
+                        f'stroke="{config["volume_color"]}" '
+                        f'stroke-width="{config["volume_line_width"]:.2f}" '
+                        'stroke-linejoin="round" stroke-linecap="round"/>',
+                    ]
+                )
+
+        zero_y = map_pnl_y(0.0)
+        svg_parts.append(
+            f'<line x1="0" y1="{zero_y:.2f}" x2="{plot_right:.2f}" '
+            f'y2="{zero_y:.2f}" stroke="{config["zero_axis_color"]}" '
+            'stroke-width="1.1" stroke-opacity="0.58" stroke-dasharray="3 3"/>'
+        )
+
+        # Color each segment by the sign of its PnL. Split zero crossings so a
+        # rising/falling segment never gets the wrong sign color.
+        pnl_paths = {"positive": [], "negative": [], "zero": []}
+        for index in range(len(pnl_values) - 1):
+            x1, y1 = main_points[index]
+            x2, y2 = main_points[index + 1]
+            value1, value2 = pnl_values[index], pnl_values[index + 1]
+            if value1 * value2 < 0:
+                fraction = abs(value1) / (abs(value1) + abs(value2))
+                cross_x = x1 + (x2 - x1) * fraction
+                cross_y = zero_y
+                first_key = "positive" if value1 > 0 else "negative"
+                second_key = "positive" if value2 > 0 else "negative"
+                pnl_paths[first_key].append(
+                    f"M{x1:.2f},{y1:.2f} L{cross_x:.2f},{cross_y:.2f}"
+                )
+                pnl_paths[second_key].append(
+                    f"M{cross_x:.2f},{cross_y:.2f} L{x2:.2f},{y2:.2f}"
+                )
+            else:
+                midpoint = (value1 + value2) / 2
+                key = (
+                    "positive"
+                    if midpoint > 0
+                    else "negative"
+                    if midpoint < 0
+                    else "zero"
+                )
+                pnl_paths[key].append(f"M{x1:.2f},{y1:.2f} L{x2:.2f},{y2:.2f}")
+
+        for key, color in (
+            ("positive", config["up_color"]),
+            ("negative", config["down_color"]),
+            ("zero", config["zero_axis_color"]),
+        ):
+            if pnl_paths[key]:
+                svg_parts.append(
+                    f'<path d="{" ".join(pnl_paths[key])}" fill="none" '
+                    f'stroke="{color}" stroke-width="{config["line_width"]:.2f}" '
+                    'stroke-linejoin="round" stroke-linecap="round"/>'
+                )
 
         svg_parts.extend(
             [
-                f'<polyline points="{main_points_attr}" fill="none" '
-                f'stroke="{main_color}" stroke-width="{config["line_width"]:.2f}" '
-                'stroke-linejoin="round" stroke-linecap="round"/>',
                 f'<circle cx="{last_x:.2f}" cy="{last_y:.2f}" '
-                f'r="{config["marker_radius"]:.2f}" fill="{main_color}" '
-                f'stroke="{main_color}" stroke-width="{0.4 * 120 / 72:.2f}"/>',
+                f'r="{config["marker_radius"]:.2f}" fill="{last_color}" '
+                f'stroke="{last_color}" stroke-width="{0.4 * 120 / 72:.2f}"/>',
                 "</g></svg>",
             ]
         )

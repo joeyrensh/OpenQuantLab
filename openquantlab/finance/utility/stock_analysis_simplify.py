@@ -355,7 +355,7 @@ class StockProposal:
                     SUM(t2.pnl) AS pnl, 
                     SUM(t2.volume) AS volume 
                 FROM temp_position_detail t2 
-                JOIN temp_industry_info t3 ON t2.symbol = t3.symbol 
+                JOIN temp_industry_info t3 ON t2.symbol = t3.symbol
                 GROUP BY t3.industry, t2.date
             ),  industry_date_matrix AS (
                 -- 2. 核心对齐：用时间轴和行业做网格对齐，如果没有数据，用 0.0 兜底，确保每个行业都拥有完美的 180 天
