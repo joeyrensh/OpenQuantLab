@@ -471,7 +471,8 @@ class StockProposal:
                   ( (adjbase_1 - COALESCE(adjbase_x, base_1)) / COALESCE(adjbase_x, base_1) )
                   * total_value
                 ) / SUM(total_value) AS pnl_growth
-            FROM stock_daily_flat
+            FROM stock_daily_flat t1
+            JOIN (SELECT industry as industry_cp FROM temp_cur_position GROUP BY industry) t2 ON t1.industry = t2.industry_cp
             -- 修正过滤：确保最新日有持仓，且计算起点的价格大于 0
             WHERE adjbase_1 IS NOT NULL AND COALESCE(adjbase_x, base_1) > 0
             GROUP BY industry
@@ -510,7 +511,8 @@ class StockProposal:
                   ( (adjbase_1 - COALESCE(adjbase_x, base_1)) / COALESCE(adjbase_x, base_1) ) 
                   * total_value
                 ) / SUM(total_value) AS pnl_growth
-            FROM stock_daily_flat
+            FROM stock_daily_flat t1
+            JOIN (SELECT industry as industry_cp FROM temp_cur_position GROUP BY industry) t2 ON t1.industry = t2.industry_cp
             -- 确保最新日有持仓，且计算起点的价格大于 0
             WHERE adjbase_1 IS NOT NULL AND COALESCE(adjbase_x, base_1) > 0
             GROUP BY industry
