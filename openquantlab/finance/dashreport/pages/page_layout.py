@@ -91,7 +91,7 @@ class PageLayout:
                 self.cb.get_industry_pnl_color_maps(industry_pnl)
             )
         self.earnings_default_industries = [
-            item["value"] for item in self.earnings_industry_options[:3]
+            item["value"] for item in self.earnings_industry_options[:2]
         ]
 
         # 注册 charts
