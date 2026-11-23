@@ -1297,7 +1297,10 @@ class StockProposal:
                 ,t2.pnl
             FROM (SELECT * FROM temp_industry_history_tracking_lstndays ORDER BY pnl_growth DESC LIMIT 10) t1
             LEFT JOIN tmp3 t2 ON t1.industry = t2.industry
-            ORDER BY t2.buy_date ASC, t1.pnl_growth DESC
+            ORDER BY
+            t1.industry ASC
+            ,t2.buy_date ASC
+            ,t2.pnl DESC;
             """.format(start_date)
         )
         pd_topn_industry_profit_trend = spark_topn_industry_profit_trend.toPandas()

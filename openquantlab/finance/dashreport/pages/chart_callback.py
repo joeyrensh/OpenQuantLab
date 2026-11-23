@@ -206,20 +206,26 @@ class ChartCallback:
             ),
             prevent_initial_call=True,
         )
-        def remove_selected_industry(_clicks, selected_industries):
-            # Newly rendered ALL-matched buttons can report their initial
-            # n_clicks=0 as a change; only an actual click should remove an item.
+        def remove_selected_industry(clicks, selected_industries):
             triggered_id = ctx.triggered_id
             if (
                 not isinstance(triggered_id, dict)
-                or not ctx.triggered
-                or not ctx.triggered[0].get("value")
+                or triggered_id.get("type") != "industry-trend-remove"
             ):
                 return no_update
             industry_to_remove = triggered_id.get("industry")
             selected_industries = selected_industries or []
             if industry_to_remove not in selected_industries:
                 return no_update
+
+            # Dash 3.4 reports ctx.triggered[0].value as None for an ALL input.
+            # The ALL values follow the same order as the rendered summary
+            # buttons, so use the matching selected industry's click count.
+            selected_index = selected_industries.index(industry_to_remove)
+            click_counts = clicks if isinstance(clicks, (list, tuple)) else [clicks]
+            if selected_index >= len(click_counts) or not click_counts[selected_index]:
+                return no_update
+
             return [
                 industry
                 for industry in selected_industries
