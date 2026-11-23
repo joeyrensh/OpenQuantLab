@@ -1952,12 +1952,7 @@ class ChartBuilder:
                 col=2,
             )
             predicted_values = forecast["median"][1:]
-            predicted_mean = float(np.mean(predicted_values))
-            summary_text = (
-                f"Max: {np.max(predicted_values):,.2f}<br>"
-                f"Mean: {predicted_mean:,.2f}<br>"
-                f"Min: {np.min(predicted_values):,.2f}"
-            )
+            summary_text = f"Median: {np.median(predicted_values):,.2f}"
             fig.add_trace(
                 go.Scatter(
                     x=[forecast_dates[-1]],
