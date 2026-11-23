@@ -614,8 +614,8 @@
 #page-content .earnings-trend-select-overlay {
   position: absolute;
   z-index: 20;
-  top: 8px;
-  left: 10px;
+  top: 4px;
+  left: 6px;
   width: min(65%, 520px);
   max-width: calc(100% - 20px);
   height: 34px;
@@ -647,8 +647,8 @@
 #page-content .earnings-trend-select-overlay > span {
   position: absolute;
   z-index: 2;
-  top: 4px;
-  left: 9px;
+  top: 0px;
+  left: 0px;
   right: 32px;
   min-height: 26px;
   display: grid;
@@ -718,7 +718,7 @@
   background: color-mix(in srgb, var(--background-color) 96%, var(--gridcolor));
   box-shadow: none;
   color: var(--text-color);
-  width: min(220px, calc(100vw - 24px)) !important;
+  width: min(140px, calc(100vw - 24px)) !important;
   max-width: calc(100vw - 24px);
 }
 
@@ -741,8 +741,8 @@
 
 @media (max-width: 550px) {
   #page-content .earnings-trend-select-overlay {
-    top: 6px;
-    left: 8px;
+    top: 2px;
+    left: 4px;
     width: calc(100% - 16px);
     max-width: calc(100% - 16px);
   }

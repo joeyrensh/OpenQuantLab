@@ -179,6 +179,7 @@ class PageLayout:
                     clearable=False,
                     closeOnSelect=False,
                     placeholder="Select industries",
+                    optionHeight=22,
                 ),
                 html.Span(
                     self.app.chart_callback.build_industry_selection_summary(

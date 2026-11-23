@@ -2,7 +2,18 @@
 修正版：单个通用回调 + DataLoader 驱动 (支持动态 Style / AspectRatio 返回)
 """
 
-from dash import ALL, MATCH, Input, Output, State, callback, ctx, html, no_update
+from dash import (
+    ALL,
+    MATCH,
+    Input,
+    Output,
+    Patch,
+    State,
+    callback,
+    ctx,
+    html,
+    no_update,
+)
 import plotly.graph_objects as go
 from finance.dashreport.data_loader import ReportDataLoader
 from finance.utility.toolkit import ToolKit
@@ -15,6 +26,9 @@ class ChartCallback:
     """
 
     _instance = None
+    # industry_pnl_trend adds five consecutive traces for each industry:
+    # history, interval lower, interval upper, forecast, and summary.
+    _PNL_TREND_TRACES_PER_INDUSTRY = 5
 
     def __new__(cls):
         if cls._instance is None:
@@ -312,6 +326,34 @@ class ChartCallback:
                 return no_update, no_update, selection_summary
 
             info = self._charts[key]
+
+            # A selector change only needs to toggle the existing industry's
+            # traces. Avoid loading data, recalculating forecasts, sleeping for
+            # the loading indicator, and sending the full figure back to Dash.
+            triggered_props = ctx.triggered_prop_ids
+            triggered_id = ctx.triggered_id
+            selector_only = (
+                len(triggered_props) == 1
+                and isinstance(triggered_id, dict)
+                and triggered_id.get("type") == "industry-trend-selector"
+            )
+            if selector_only and chart_type == "pnl_trend":
+                industry_order = list(
+                    next(iter(info["industry_color_maps"].values()), {}).keys()
+                )
+                if industry_order:
+                    selected_set = {str(industry) for industry in selected_industries}
+                    figure_patch = Patch()
+                    traces_per_industry = self._PNL_TREND_TRACES_PER_INDUSTRY
+                    for industry_index, industry in enumerate(industry_order):
+                        is_visible = str(industry) in selected_set
+                        first_trace = industry_index * traces_per_industry
+                        for trace_index in range(
+                            first_trace, first_trace + traces_per_industry
+                        ):
+                            figure_patch["data"][trace_index]["visible"] = is_visible
+                    return figure_patch, no_update, selection_summary
+
             builder = info["builder"]
             datasets = info["datasets"]
 
