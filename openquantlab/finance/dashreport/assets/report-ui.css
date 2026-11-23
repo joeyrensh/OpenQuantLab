@@ -713,10 +713,10 @@
 
 #page-content .earnings-trend-select-overlay .Select-menu-outer {
   z-index: 30;
-  border: 1px solid var(--gridcolor);
-  border-radius: 6px;
-  background: var(--background-color);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  border: 1px solid color-mix(in srgb, var(--gridcolor) 72%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--background-color) 96%, var(--gridcolor));
+  box-shadow: none;
   color: var(--text-color);
   width: min(220px, calc(100vw - 24px)) !important;
   max-width: calc(100vw - 24px);
@@ -725,17 +725,17 @@
 #page-content .earnings-trend-select-overlay .Select-option {
   min-height: 34px;
   padding: 8px 10px;
-  background: var(--background-color);
+  background: transparent;
   color: var(--text-color);
 }
 
 #page-content .earnings-trend-select-overlay .Select-option.is-focused {
-  background: color-mix(in srgb, var(--blue-line-color) 12%, var(--background-color));
+  background: color-mix(in srgb, var(--blue-line-color) 7%, var(--background-color));
   color: var(--text-color);
 }
 
 #page-content .earnings-trend-select-overlay .Select-option.is-selected {
-  background: color-mix(in srgb, var(--blue-line-color) 16%, var(--background-color));
+  background: color-mix(in srgb, var(--blue-line-color) 10%, var(--background-color));
   color: var(--text-color);
 }
 

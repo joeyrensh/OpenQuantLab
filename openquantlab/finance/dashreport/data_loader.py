@@ -410,9 +410,9 @@ class ReportDataLoader:
         filtered_df = df[df[date_col].isin(latest_unique_dates)].copy()
 
         # 4. 按日期升序排序并重置索引，确保图标按时间轴从左到右正常展示
-        return filtered_df.sort_values(by=date_col, ascending=True).reset_index(
-            drop=True
-        )
+        return filtered_df.sort_values(
+            by=date_col, ascending=True, kind="stable"
+        ).reset_index(drop=True)
 
     @staticmethod
     def _load_heatmap(prefix: str) -> pd.DataFrame:

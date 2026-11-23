@@ -76,8 +76,9 @@ class PageLayout:
             ].sum()
             latest_date = industry_pnl["buy_date"].max()
             latest_industries = (
-                industry_pnl.loc[industry_pnl["buy_date"] == latest_date]
-                .sort_values("pnl", ascending=False)["industry"]
+                industry_pnl.loc[
+                    industry_pnl["buy_date"] == latest_date, "industry"
+                ]
                 .drop_duplicates()
                 .head(10)
                 .tolist()

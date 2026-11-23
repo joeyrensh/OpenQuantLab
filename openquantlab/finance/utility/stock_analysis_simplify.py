@@ -1291,22 +1291,32 @@ class StockProposal:
                 ,SUM(COALESCE(t2.pnl, 0)) AS pnl
             FROM tmp1 t1 LEFT JOIN tmp2 t2 ON t1.industry = t2.industry AND t1.buy_date = t2.date
             GROUP BY t1.buy_date, t1.industry ,t2.symbol
-            )  SELECT t2.buy_date
+            ), ranked_industries AS (
+                SELECT industry
+                    ,pnl_growth
+                    ,ROW_NUMBER() OVER (
+                        ORDER BY pnl_growth DESC, industry ASC
+                    ) AS industry_rank
+                FROM temp_industry_history_tracking_lstndays
+            ), top_industries AS (
+                SELECT industry
+                    ,industry_rank
+                FROM ranked_industries
+                WHERE industry_rank <= 10
+            )
+            SELECT t2.buy_date
                 ,t1.industry
                 ,t2.symbol
                 ,t2.pnl
-            FROM (SELECT * FROM temp_industry_history_tracking_lstndays ORDER BY pnl_growth DESC LIMIT 10) t1
+            FROM top_industries t1
             LEFT JOIN tmp3 t2 ON t1.industry = t2.industry
             ORDER BY
-            t1.industry ASC
-            ,t2.buy_date ASC
+            t2.buy_date ASC
+            ,t1.industry_rank ASC
             ,t2.pnl DESC;
             """.format(start_date)
         )
         pd_topn_industry_profit_trend = spark_topn_industry_profit_trend.toPandas()
-        pd_topn_industry_profit_trend.sort_values(
-            by=["buy_date", "pnl"], ascending=[False, False], inplace=True
-        )
         # 导出 CSV 供 Dash 使用
         try:
             pd_topn_industry_profit_trend.to_csv(

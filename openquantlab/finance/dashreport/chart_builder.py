@@ -2087,18 +2087,10 @@ class ChartBuilder:
 
     @staticmethod
     def get_industry_pnl_order(df):
-        """Return the chart's stable ordering: latest-date PnL rank, then history."""
-        latest_date = df["buy_date"].max()
-        latest_order = (
-            df[df["buy_date"] == latest_date]
-            .sort_values(by="pnl", ascending=False)["industry"]
-            .unique()
-            .tolist()
-        )
-        all_industries = df["industry"].drop_duplicates().tolist()
-        return latest_order + [
-            industry for industry in all_industries if industry not in latest_order
-        ]
+        """Preserve the industry order supplied by the source CSV/DataFrame."""
+        if df.empty or "industry" not in df.columns:
+            return []
+        return df["industry"].dropna().drop_duplicates().tolist()
 
     @staticmethod
     def _cycle_industry_colors(industry_order, palette):
