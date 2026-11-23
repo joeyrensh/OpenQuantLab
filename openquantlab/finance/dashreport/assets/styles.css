@@ -750,6 +750,12 @@ legend {
   font-weight: 300 !important;
 }
 
+#page-content .chart-container .earnings-trend-select-overlay,
+#page-content .chart-container .earnings-trend-select-overlay .Select-option {
+  font-size: clamp(1.05rem, 2.5cqw, 1.5rem) !important;
+  font-weight: 300 !important;
+}
+
 /* .chart-container .js-plotly-plot .plotly .legend text.legendtext {
     letter-spacing: -0.1em !important;
 } */

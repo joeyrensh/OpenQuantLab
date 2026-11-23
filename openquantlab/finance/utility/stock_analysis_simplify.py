@@ -1287,13 +1287,15 @@ class StockProposal:
             ), tmp3 AS (
             SELECT t1.buy_date
                 ,t1.industry
+                ,t2.symbol
                 ,SUM(COALESCE(t2.pnl, 0)) AS pnl
             FROM tmp1 t1 LEFT JOIN tmp2 t2 ON t1.industry = t2.industry AND t1.buy_date = t2.date
-            GROUP BY t1.buy_date, t1.industry
+            GROUP BY t1.buy_date, t1.industry ,t2.symbol
             )  SELECT t2.buy_date
                 ,t1.industry
+                ,t2.symbol
                 ,t2.pnl
-            FROM (SELECT * FROM temp_industry_history_tracking_lstndays ORDER BY pnl_growth DESC LIMIT 5) t1
+            FROM (SELECT * FROM temp_industry_history_tracking_lstndays ORDER BY pnl_growth DESC LIMIT 10) t1
             LEFT JOIN tmp3 t2 ON t1.industry = t2.industry
             ORDER BY t2.buy_date ASC, t1.pnl_growth DESC
             """.format(start_date)

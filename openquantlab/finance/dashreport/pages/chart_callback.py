@@ -2,7 +2,7 @@
 修正版：单个通用回调 + DataLoader 驱动 (支持动态 Style / AspectRatio 返回)
 """
 
-from dash import Output, Input, MATCH, callback, no_update
+from dash import ALL, MATCH, Input, Output, State, callback, ctx, html, no_update
 import plotly.graph_objects as go
 from finance.dashreport.data_loader import ReportDataLoader
 from finance.utility.toolkit import ToolKit
@@ -113,6 +113,7 @@ class ChartCallback:
         chart_builder,
         datasets,
         index: int = 0,
+        industry_color_maps=None,
     ):
         """
         datasets: tuple[str, ...]
@@ -124,6 +125,7 @@ class ChartCallback:
             "chart_type": chart_type,
             "page": page_prefix,
             "index": index,
+            "industry_color_maps": industry_color_maps or {},
         }
         return key
 
@@ -135,12 +137,94 @@ class ChartCallback:
             "index": index,
         }
 
+    @staticmethod
+    def build_industry_selection_summary(
+        selected_industries, page, chart_type, index, industry_colors=None
+    ):
+        if not selected_industries:
+            return "Select industries"
+        industry_colors = industry_colors or {}
+        return [
+            html.Span(
+                [
+                    html.Button(
+                        "×",
+                        id={
+                            "type": "industry-trend-remove",
+                            "page": page,
+                            "chart": chart_type,
+                            "index": index,
+                            "industry": str(industry),
+                        },
+                        n_clicks=0,
+                        type="button",
+                        title=f"Remove {industry}",
+                        **{"aria-label": f"Remove {industry}"},
+                    ),
+                    html.Span(str(industry)),
+                ],
+                key=str(industry),
+            )
+            for industry in selected_industries
+        ]
+
     # =========================
     # 全局唯一回调
     # =========================
     def setup_callback(self, app):
         if self._callback_registered:
             return
+
+        @callback(
+            Output(
+                {
+                    "type": "industry-trend-selector",
+                    "page": MATCH,
+                    "chart": MATCH,
+                    "index": MATCH,
+                },
+                "value",
+            ),
+            Input(
+                {
+                    "type": "industry-trend-remove",
+                    "page": MATCH,
+                    "chart": MATCH,
+                    "index": MATCH,
+                    "industry": ALL,
+                },
+                "n_clicks",
+            ),
+            State(
+                {
+                    "type": "industry-trend-selector",
+                    "page": MATCH,
+                    "chart": MATCH,
+                    "index": MATCH,
+                },
+                "value",
+            ),
+            prevent_initial_call=True,
+        )
+        def remove_selected_industry(_clicks, selected_industries):
+            # Newly rendered ALL-matched buttons can report their initial
+            # n_clicks=0 as a change; only an actual click should remove an item.
+            triggered_id = ctx.triggered_id
+            if (
+                not isinstance(triggered_id, dict)
+                or not ctx.triggered
+                or not ctx.triggered[0].get("value")
+            ):
+                return no_update
+            industry_to_remove = triggered_id.get("industry")
+            selected_industries = selected_industries or []
+            if industry_to_remove not in selected_industries:
+                return no_update
+            return [
+                industry
+                for industry in selected_industries
+                if industry != industry_to_remove
+            ]
 
         @callback(
             [
@@ -162,9 +246,27 @@ class ChartCallback:
                     },
                     "style",
                 ),
+                Output(
+                    {
+                        "type": "industry-trend-summary",
+                        "page": MATCH,
+                        "chart": MATCH,
+                        "index": MATCH,
+                    },
+                    "children",
+                ),
             ],
             Input("current-theme", "data"),
             Input("client-width", "data"),
+            Input(
+                {
+                    "type": "industry-trend-selector",
+                    "page": MATCH,
+                    "chart": MATCH,
+                    "index": MATCH,
+                },
+                "value",
+            ),
             Input(
                 {
                     "type": "dynamic-chart",
@@ -176,20 +278,32 @@ class ChartCallback:
             ),
             prevent_initial_call=False,  # ⚠️ 允许首次渲染
         )
-        def universal_chart_callback(theme, client_width, component_id):
+        def universal_chart_callback(
+            theme, client_width, selected_industries, component_id
+        ):
             page = component_id["page"]
             chart_type = component_id["chart"]
             index = component_id["index"]
 
             theme = theme or "light"
             client_width = client_width or 1440
+            selected_industries = selected_industries or []
+            key = f"{chart_type}_{page}_{index}"
+            info = self._charts.get(key)
+            industry_color_maps = (info or {}).get("industry_color_maps", {})
+            selection_summary = self.build_industry_selection_summary(
+                selected_industries,
+                page,
+                chart_type,
+                index,
+                industry_color_maps.get(theme, {}),
+            )
 
             # 动态计算对应的 style
             chart_style = self._get_chart_style(chart_type, client_width)
 
-            key = f"{chart_type}_{page}_{index}"
             if key not in self._charts:
-                return no_update, no_update
+                return no_update, no_update, selection_summary
 
             info = self._charts[key]
             builder = info["builder"]
@@ -213,6 +327,7 @@ class ChartCallback:
                                 "Run Backtest", theme, client_width
                             ),
                             chart_style,
+                            selection_summary,
                         )
                     pnl, cash, total_value = data_bundle["annual_return"]
                     fig = builder.annual_return(
@@ -232,6 +347,7 @@ class ChartCallback:
                                 "Run Backtest", theme, client_width
                             ),
                             chart_style,
+                            selection_summary,
                         )
                     fig = builder.calendar_heatmap(
                         page=page,
@@ -247,6 +363,7 @@ class ChartCallback:
                                 "Run Backtest", theme, client_width
                             ),
                             chart_style,
+                            selection_summary,
                         )
                     fig = builder.industry_strength_chart(
                         page=page,
@@ -262,6 +379,7 @@ class ChartCallback:
                                 "Run Backtest", theme, client_width
                             ),
                             chart_style,
+                            selection_summary,
                         )
                     fig = builder.strategy_chart(
                         page=page,
@@ -278,6 +396,7 @@ class ChartCallback:
                                 "Run Backtest", theme, client_width
                             ),
                             chart_style,
+                            selection_summary,
                         )
                     fig = builder.trade_info_chart(
                         page=page,
@@ -294,12 +413,14 @@ class ChartCallback:
                                 "Run Backtest", theme, client_width
                             ),
                             chart_style,
+                            selection_summary,
                         )
                     fig = builder.industry_pnl_trend(
                         page=page,
                         df=df,
                         theme=theme,
                         client_width=client_width,
+                        selected_industries=selected_industries,
                     )
 
                 elif chart_type == "industry_position":
@@ -310,6 +431,7 @@ class ChartCallback:
                                 "Run Backtest", theme, client_width
                             ),
                             chart_style,
+                            selection_summary,
                         )
                     fig = builder.industry_position_treemap(
                         page=page,
@@ -326,6 +448,7 @@ class ChartCallback:
                                 "Run Backtest", theme, client_width
                             ),
                             chart_style,
+                            selection_summary,
                         )
                     fig = builder.industry_profit_treemap(
                         page=page,
@@ -335,12 +458,13 @@ class ChartCallback:
                     )
 
                 else:
-                    return no_update, no_update
+                    return no_update, no_update, selection_summary
 
-                return fig, chart_style
+                return fig, chart_style, selection_summary
 
             except Exception as e:
                 print(f"⚠️ Chart generation failed. {key}: {e}")
-                return no_update, no_update
+                return no_update, no_update, selection_summary
 
         self._callback_registered = True
+

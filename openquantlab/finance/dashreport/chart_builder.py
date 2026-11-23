@@ -1607,6 +1607,7 @@ class ChartBuilder:
         df,
         theme="light",
         client_width=1440,
+        selected_industries=None,
     ):
         cfg = self.theme_config.get(theme, self.theme_config["light"])
         text_color = cfg["text-color"]
@@ -1619,25 +1620,39 @@ class ChartBuilder:
         df["pnl"] = pd.to_numeric(df["pnl"], errors="coerce")
         df = df.dropna(subset=["buy_date", "pnl", "industry"])
 
-        # Keep the existing latest-date PnL ranking unchanged.
-        latest_date = df["buy_date"].iloc[-1]
-        legend_order = (
-            df[df["buy_date"] == latest_date]
-            .sort_values(by="pnl", ascending=False)["industry"]
-            .unique()
-            .tolist()
-        )
-        all_industries = df["industry"].drop_duplicates().tolist()
-        industry_order = legend_order + [
-            industry for industry in all_industries if industry not in legend_order
-        ]
+        # Keep symbol-level history for forecasting, then aggregate it for the
+        # existing industry-level historical chart.
+        symbol_df = None
+        if "symbol" in df.columns:
+            symbol_df = df.dropna(subset=["symbol"]).groupby(
+                ["buy_date", "industry", "symbol"],
+                as_index=False,
+                sort=False,
+            )["pnl"].sum()
+
+        df = df.groupby(
+            ["buy_date", "industry"], as_index=False, sort=False
+        )["pnl"].sum()
+
+        industry_order = self.get_industry_pnl_order(df)
         focus_industry = industry_order[0]
+        selected_industries = (
+            [focus_industry]
+            if selected_industries is None
+            else selected_industries
+        )
+        if isinstance(selected_industries, str):
+            selected_industries = [selected_industries]
+        selected_industries = {str(industry) for industry in selected_industries}
         df = df.sort_values("buy_date")
 
-        # Forecast each industry's daily PnL independently with a mean-reverting
-        # AR(1) model and a residual-bootstrap prediction interval.
+        # Estimate the expected daily PnL change per currently-held symbol,
+        # then shrink it according to recent holdings stability and whether
+        # the move is broad-based or concentrated in a few symbols. Bootstrap
+        # centered industry-level changes for the uncertainty range.
         horizon = 20
         simulations = 1000
+        drift_shrinkage = 0.25
         last_date = df["buy_date"].max()
         forecast_dates = pd.bdate_range(
             start=last_date + pd.Timedelta(days=1), periods=horizon
@@ -1658,57 +1673,179 @@ class ChartBuilder:
             history = industry_history.reindex(market_dates, fill_value=0).to_numpy(
                 dtype=float
             )
-            recent_pnl = history
-            last_pnl = float(recent_pnl[-1])
+            last_pnl = float(history[-1])
             forecast_median = np.full(horizon, last_pnl, dtype=float)
             forecast_low = forecast_median.copy()
             forecast_high = forecast_median.copy()
 
-            if len(recent_pnl) >= 3:
-                recent_mean = float(np.mean(recent_pnl))
-                centered_previous = recent_pnl[:-1] - recent_mean
-                centered_next = recent_pnl[1:] - recent_mean
-                denominator = float(np.dot(centered_previous, centered_previous))
-                phi = (
-                    float(np.dot(centered_previous, centered_next) / denominator)
-                    if denominator > np.finfo(float).eps
-                    else 0.0
-                )
-                phi = float(np.clip(phi, -0.95, 0.98))
-                residuals = centered_next - phi * centered_previous
-                residuals = residuals - residuals.mean()
+            expected_daily_change = 0.0
+            stability_factor = 0.0
+            breadth_factor = 0.0
+            direction_factor = 0.0
+            position_count = 0
+            position_count_factor = 0.0
+            drift_confidence = 0.0
+            if symbol_df is not None:
+                current_symbols = symbol_df.loc[
+                    (symbol_df["buy_date"] == last_date)
+                    & (symbol_df["industry"] == industry),
+                    "symbol",
+                ].drop_duplicates()
+                position_count = len(current_symbols)
+                # A small number of holdings makes an industry-level signal
+                # less representative. The pseudo-count prevents confidence
+                # from reaching 100% just because a few names are held.
+                position_count_factor = position_count / (position_count + 4.0)
 
-                if np.any(np.abs(residuals) > np.finfo(float).eps):
-                    rng = np.random.default_rng(42 + index)
-                    sampled_residuals = rng.choice(
-                        residuals, size=(simulations, horizon), replace=True
+                symbol_drifts = []
+                for symbol in current_symbols:
+                    symbol_history = (
+                        symbol_df.loc[
+                            (symbol_df["industry"] == industry)
+                            & (symbol_df["symbol"] == symbol),
+                            ["buy_date", "pnl"],
+                        ]
+                        .groupby("buy_date")["pnl"]
+                        .sum()
+                        .sort_index()
                     )
-                    paths = np.empty((simulations, horizon), dtype=float)
-                    simulated_last = np.full(simulations, last_pnl, dtype=float)
-                    for step in range(horizon):
-                        simulated_last = (
-                            recent_mean
-                            + phi * (simulated_last - recent_mean)
-                            + sampled_residuals[:, step]
+                    # Use the current uninterrupted holding episode only. A
+                    # missing daily row can mark a close/re-entry boundary;
+                    # forward-filling across it would create a false PnL jump.
+                    present_dates = set(symbol_history.index)
+                    current_episode_dates = []
+                    for symbol_date in reversed(market_dates):
+                        if symbol_date > last_date or symbol_date not in present_dates:
+                            break
+                        current_episode_dates.append(symbol_date)
+                    symbol_dates = pd.DatetimeIndex(current_episode_dates[::-1])
+                    symbol_levels = symbol_history.reindex(symbol_dates).to_numpy(
+                        dtype=float
+                    )
+                    symbol_changes = np.diff(symbol_levels)
+                    symbol_changes = symbol_changes[np.isfinite(symbol_changes)]
+                    if not len(symbol_changes):
+                        continue
+
+                    # Winsorize changes so one unusual move does not dominate
+                    # the current holding episode's drift estimate.
+                    lower, upper = np.quantile(symbol_changes, [0.05, 0.95])
+                    symbol_drifts.append(
+                        float(np.mean(np.clip(symbol_changes, lower, upper)))
+                    )
+
+                if symbol_drifts:
+                    abs_drift_total = float(np.sum(np.abs(symbol_drifts)))
+                    if abs_drift_total > np.finfo(float).eps:
+                        drift_weights = np.abs(symbol_drifts) / abs_drift_total
+                        effective_contributors = 1.0 / float(
+                            np.sum(np.square(drift_weights))
                         )
-                        paths[:, step] = simulated_last
+                        current_symbol_count = len(current_symbols)
+                        if current_symbol_count == 1:
+                            # With one name, concentration breadth is
+                            # unobservable; let the position-count factor
+                            # express the additional uncertainty instead.
+                            breadth_factor = 1.0
+                        elif current_symbol_count > 1:
+                            breadth_factor = float(
+                                np.clip(
+                                    (effective_contributors - 1.0)
+                                    / (current_symbol_count - 1.0),
+                                    0.0,
+                                    1.0,
+                                )
+                            )
+                        direction_factor = float(
+                            np.clip(
+                                abs(np.sum(symbol_drifts)) / abs_drift_total,
+                                0.0,
+                                1.0,
+                            )
+                        )
+
+                if len(current_symbols) > 0:
+                    active_symbols_by_date = (
+                        symbol_df.loc[symbol_df["industry"] == industry]
+                        .groupby("buy_date")["symbol"]
+                        .agg(lambda values: set(values))
+                    )
+                    stability_dates = market_dates[-(horizon + 1) :]
+                    stability_scores = []
+                    for previous_date, current_date in zip(
+                        stability_dates[:-1], stability_dates[1:]
+                    ):
+                        previous_set = active_symbols_by_date.get(previous_date, set())
+                        current_set = active_symbols_by_date.get(current_date, set())
+                        union = previous_set | current_set
+                        if union:
+                            stability_scores.append(
+                                len(previous_set & current_set) / len(union)
+                            )
+                    if stability_scores:
+                        stability_factor = float(np.mean(stability_scores))
+
+                drift_confidence = (
+                    stability_factor
+                    * breadth_factor
+                    * direction_factor
+                    * position_count_factor
+                )
+                raw_daily_drift = float(np.sum(symbol_drifts)) if symbol_drifts else 0.0
+                expected_daily_change = (
+                    raw_daily_drift * drift_shrinkage * drift_confidence
+                )
+
+            daily_changes = np.diff(history)
+            daily_changes = daily_changes[np.isfinite(daily_changes)]
+            if len(daily_changes) >= 3:
+                # Use aggregate history for volatility and short-run dependence,
+                # while the symbol panel supplies the forecast's direction.
+                innovations = daily_changes - float(np.mean(daily_changes))
+                block_size = min(5, len(innovations))
+                max_block_start = len(innovations) - block_size
+
+                if np.any(np.abs(innovations) > np.finfo(float).eps):
+                    rng = np.random.default_rng(42 + index)
+                    block_count = int(np.ceil(horizon / block_size))
+                    block_starts = rng.integers(
+                        0,
+                        max_block_start + 1,
+                        size=(simulations, block_count),
+                    )
+                    sampled_changes = np.empty((simulations, horizon), dtype=float)
+                    for block_index in range(block_count):
+                        start = block_index * block_size
+                        stop = min(start + block_size, horizon)
+                        offsets = np.arange(stop - start)
+                        sampled_changes[:, start:stop] = innovations[
+                            block_starts[:, block_index, None] + offsets
+                        ]
+
+                    paths = last_pnl + np.cumsum(
+                        expected_daily_change + sampled_changes, axis=1
+                    )
 
                     forecast_median = np.quantile(paths, 0.50, axis=0)
                     forecast_low = np.quantile(paths, 0.10, axis=0)
                     forecast_high = np.quantile(paths, 0.90, axis=0)
                 else:
-                    forecast_median = recent_mean + phi ** np.arange(1, horizon + 1) * (
-                        last_pnl - recent_mean
+                    forecast_median = last_pnl + expected_daily_change * np.arange(
+                        1, horizon + 1
                     )
                     forecast_low = forecast_median.copy()
                     forecast_high = forecast_median.copy()
+            elif expected_daily_change:
+                forecast_median = last_pnl + expected_daily_change * np.arange(
+                    1, horizon + 1
+                )
+                forecast_low = forecast_median.copy()
+                forecast_high = forecast_median.copy()
 
             forecasts[industry] = {
-                "last": last_pnl,
                 "median": np.r_[last_pnl, forecast_median],
                 "low": np.r_[last_pnl, forecast_low],
                 "high": np.r_[last_pnl, forecast_high],
-                "history": history,
             }
 
         fig = make_subplots(
@@ -1730,11 +1867,13 @@ class ChartBuilder:
         )
 
         palette = cfg["pnl-colors"]
-        for index, industry in enumerate(industry_order):
+        industry_colors = self._cycle_industry_colors(industry_order, palette)
+        for industry in industry_order:
             industry_df = df[df["industry"] == industry].sort_values("buy_date")
-            line_color = palette[index % len(palette)]
+            line_color = industry_colors[industry]
             line_bg = self.darken_color(line_color, theme=theme)
             legend_group = str(industry)
+            industry_visible = str(industry) in selected_industries
             fig.add_trace(
                 go.Scatter(
                     x=industry_df["buy_date"],
@@ -1743,7 +1882,7 @@ class ChartBuilder:
                     name=str(industry),
                     legendgroup=legend_group,
                     line=dict(color=line_color, width=1),
-                    visible=True if industry == focus_industry else "legendonly",
+                    visible=industry_visible,
                     hovertemplate=(
                         "<b>%{fullData.name}</b> PnL: %{y:,.2f}"
                         "<br>%{x|%Y-%m-%d}<extra></extra>"
@@ -1756,7 +1895,7 @@ class ChartBuilder:
             forecast = forecasts[industry]
             forecast_color = line_color
             forecast_fill = self._get_alpha_color(forecast_color, alpha=0.18)
-            forecast_visible = True if industry == focus_industry else "legendonly"
+            forecast_visible = industry_visible
             forecast_customdata = np.column_stack([forecast["low"], forecast["high"]])
             fig.add_trace(
                 go.Scatter(
@@ -1801,7 +1940,7 @@ class ChartBuilder:
                     line=dict(color=forecast_color, width=1, dash="dash"),
                     customdata=forecast_customdata,
                     hovertemplate=(
-                        f"<b>{industry} AR(1) forecast</b><br>Median: "
+                        f"<b>{industry} forecast</b><br>Median: "
                         "%{y:,.2f}<br>80% interval: %{customdata[0]:,.2f}–"
                         "%{customdata[1]:,.2f}<br>%{x|%Y-%m-%d}<extra></extra>"
                     ),
@@ -1927,19 +2066,8 @@ class ChartBuilder:
         )
         fig.update_layout(
             title="",
+            showlegend=False,
             legend_title_text=None,
-            legend=dict(
-                orientation="v",
-                x=0,
-                xanchor="left",
-                y=1,
-                yanchor="top",
-                font=dict(size=font_size, color=text_color, family=self.font_family),
-                bgcolor=cfg["legend-bg-color"],
-                borderwidth=0,
-                tracegroupgap=0,
-                groupclick="togglegroup",
-            ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             margin=dict(t=0, b=5, l=0, r=0),
@@ -1956,6 +2084,39 @@ class ChartBuilder:
             ),
         )
         return fig
+
+    @staticmethod
+    def get_industry_pnl_order(df):
+        """Return the chart's stable ordering: latest-date PnL rank, then history."""
+        latest_date = df["buy_date"].max()
+        latest_order = (
+            df[df["buy_date"] == latest_date]
+            .sort_values(by="pnl", ascending=False)["industry"]
+            .unique()
+            .tolist()
+        )
+        all_industries = df["industry"].drop_duplicates().tolist()
+        return latest_order + [
+            industry for industry in all_industries if industry not in latest_order
+        ]
+
+    @staticmethod
+    def _cycle_industry_colors(industry_order, palette):
+        """Assign a palette color to every industry, cycling for longer lists."""
+        if not palette:
+            return {}
+        return {
+            industry: palette[index % len(palette)]
+            for index, industry in enumerate(industry_order)
+        }
+
+    def get_industry_pnl_color_maps(self, df):
+        """Map each industry to the same cycling color used by its chart trace."""
+        industry_order = self.get_industry_pnl_order(df)
+        return {
+            theme: self._cycle_industry_colors(industry_order, config["pnl-colors"])
+            for theme, config in self.theme_config.items()
+        }
 
     def industry_position_treemap(
         self,

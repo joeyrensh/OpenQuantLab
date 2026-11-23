@@ -1,6 +1,7 @@
 from dash import html
 from dash import dcc
 import dash_bootstrap_components as dbc
+import pandas as pd
 from finance.dashreport.utils import Header
 from finance.dashreport.chart_builder import ChartBuilder
 from finance.dashreport.data_loader import ReportDataLoader
@@ -59,6 +60,40 @@ class PageLayout:
         )
 
         self.cb = ChartBuilder()
+        pnl_trend = self.data.get("pnl_trend")
+        self.earnings_industry_options = []
+        self.earnings_industry_color_maps = {"light": {}, "dark": {}}
+        if pnl_trend is not None and not pnl_trend.empty:
+            industry_pnl = pnl_trend.copy()
+            industry_pnl["buy_date"] = pd.to_datetime(
+                industry_pnl["buy_date"], errors="coerce"
+            )
+            industry_pnl["pnl"] = pd.to_numeric(industry_pnl["pnl"], errors="coerce")
+            industry_pnl = industry_pnl.dropna(
+                subset=["buy_date", "industry", "pnl"]
+            ).groupby(["buy_date", "industry"], as_index=False, sort=False)[
+                "pnl"
+            ].sum()
+            latest_date = industry_pnl["buy_date"].max()
+            latest_industries = (
+                industry_pnl.loc[industry_pnl["buy_date"] == latest_date]
+                .sort_values("pnl", ascending=False)["industry"]
+                .drop_duplicates()
+                .head(10)
+                .tolist()
+            )
+            self.earnings_industry_options = [
+                {"label": str(industry), "value": str(industry)}
+                for industry in latest_industries
+            ]
+            self.earnings_industry_color_maps = (
+                self.cb.get_industry_pnl_color_maps(industry_pnl)
+            )
+        self.earnings_default_industries = (
+            [self.earnings_industry_options[0]["value"]]
+            if self.earnings_industry_options
+            else []
+        )
 
         # 注册 charts
         self.register_charts()
@@ -86,6 +121,11 @@ class PageLayout:
                     chart_builder=self.cb,
                     datasets=(chart_type,),
                     index=index,
+                    industry_color_maps=(
+                        self.earnings_industry_color_maps
+                        if chart_type == "pnl_trend"
+                        else None
+                    ),
                 )
 
     def build_kpi_section(self):
@@ -117,6 +157,50 @@ class PageLayout:
         if chart_type not in self.show_charts:
             return html.Div()
 
+        is_earnings_trend = chart_type == "pnl_trend"
+        industry_options = (
+            self.earnings_industry_options if is_earnings_trend else []
+        )
+        selected_industries = (
+            self.earnings_default_industries if is_earnings_trend else []
+        )
+        industry_selector = html.Div(
+            [
+                dcc.Dropdown(
+                    id={
+                        "type": "industry-trend-selector",
+                        "page": self.prefix,
+                        "chart": chart_type,
+                        "index": index,
+                    },
+                    options=industry_options,
+                    value=selected_industries,
+                    multi=True,
+                    searchable=False,
+                    clearable=False,
+                    closeOnSelect=False,
+                    placeholder="Select industries",
+                ),
+                html.Span(
+                    self.app.chart_callback.build_industry_selection_summary(
+                        selected_industries,
+                        self.prefix,
+                        chart_type,
+                        index,
+                        industry_colors=self.earnings_industry_color_maps["light"],
+                    ),
+                    id={
+                        "type": "industry-trend-summary",
+                        "page": self.prefix,
+                        "chart": chart_type,
+                        "index": index,
+                    },
+                ),
+            ],
+            className="earnings-trend-select-overlay",
+            style={} if is_earnings_trend else {"display": "none"},
+        )
+
         return html.Div(
             [
                 html.Button(
@@ -139,6 +223,7 @@ class PageLayout:
                 html.Div(
                     className="chart-container",
                     children=[
+                        industry_selector,
                         dcc.Loading(
                             id=f"loading-{chart_type}-{self.prefix}",
                             type="circle",
