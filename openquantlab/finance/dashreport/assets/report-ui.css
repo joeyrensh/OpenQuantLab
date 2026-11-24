@@ -695,6 +695,27 @@
   line-height: 1;
   cursor: pointer;
   pointer-events: auto;
+  position: relative;
+}
+
+#page-content .earnings-trend-select-overlay > span > span > button::before,
+#page-content .earnings-trend-select-overlay > span > span > button::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  content: "";
+}
+
+#page-content .earnings-trend-select-overlay > span > span > button::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+#page-content .earnings-trend-select-overlay > span > span > button::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 #page-content .earnings-trend-select-overlay > span > span > button:hover {

@@ -162,7 +162,7 @@ class ChartCallback:
             html.Span(
                 [
                     html.Button(
-                        "×",
+                        "",
                         id={
                             "type": "industry-trend-remove",
                             "page": page,
