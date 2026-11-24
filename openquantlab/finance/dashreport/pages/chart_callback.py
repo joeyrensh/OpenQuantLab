@@ -173,6 +173,11 @@ class ChartCallback:
                         n_clicks=0,
                         type="button",
                         title=f"Remove {industry}",
+                        style={
+                            "color": industry_colors.get(
+                                str(industry), "var(--text-color)"
+                            )
+                        },                        
                         **{"aria-label": f"Remove {industry}"},
                     ),
                     html.Span(str(industry)),

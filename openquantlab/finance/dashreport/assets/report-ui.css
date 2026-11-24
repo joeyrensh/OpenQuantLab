@@ -656,7 +656,7 @@
   justify-content: start;
   align-content: flex-start;
   row-gap: 0;
-  column-gap: 24px;
+  column-gap: 12px;
   overflow: visible;
   background: transparent;
   color: var(--text-color);
@@ -750,6 +750,6 @@
   #page-content .earnings-trend-select-overlay > span {
     grid-template-columns: repeat(2, max-content);
     justify-content: start;
-    column-gap: 24px;
+    column-gap: 12px;
   }
 }
