@@ -198,7 +198,13 @@ class PageLayout:
                 ),
             ],
             className="earnings-trend-select-overlay",
-            style={} if is_earnings_trend else {"display": "none"},
+            id={
+                "type": "industry-trend-selector-container",
+                "page": self.prefix,
+                "chart": chart_type,
+                "index": index,
+            },
+            style={"display": "none"},
         )
 
         return html.Div(
@@ -224,13 +230,20 @@ class PageLayout:
                     className="chart-container",
                     children=[
                         dcc.Loading(
-                            id=f"loading-{chart_type}-{self.prefix}",
+                            id={
+                                "type": "initial-chart-loading",
+                                "page": self.prefix,
+                                "chart": chart_type,
+                                "index": index,
+                            },
                             type="circle",
                             delay_hide=1000,
+                            display="show" if is_earnings_trend else "hide",
                             style={
                                 "width": "100%",
                                 "height": "100%",
                                 "position": "relative",
+                                "zIndex": 1,
                                 "display": "flex",
                                 "justifyContent": "center",
                                 "alignItems": "center",
@@ -246,24 +259,46 @@ class PageLayout:
                             fullscreen=False,
                             children=[
                                 industry_selector,
-                                dcc.Graph(
-                                    id=self.app.chart_callback.get_chart_id(
-                                        chart_type, self.prefix, index
-                                    ),
-                                    # figure=None,
-                                    config={
-                                        "displayModeBar": False,
-                                        "doubleClick": False,  # 禁用双击缩放
-                                        "responsive": True,
-                                    },
+                                dcc.Loading(
+                                    id=f"loading-{chart_type}-{self.prefix}",
+                                    type="circle",
+                                    delay_hide=1000,
                                     style={
-                                        "margin": 0,
-                                        "padding": 0,
                                         "width": "100%",
                                         "height": "100%",
+                                        "position": "relative",
+                                        "display": "flex",
+                                        "justifyContent": "center",
+                                        "alignItems": "center",
                                     },
-                                    mathjax=True,
-                                )
+                                    parent_style={
+                                        "width": "100%",
+                                        "height": "100%",
+                                        "display": "flex",
+                                        "justifyContent": "center",
+                                        "alignItems": "center",
+                                    },
+                                    color="var(--blue-line-color)",
+                                    fullscreen=False,
+                                    children=dcc.Graph(
+                                        id=self.app.chart_callback.get_chart_id(
+                                            chart_type, self.prefix, index
+                                        ),
+                                        # figure=None,
+                                        config={
+                                            "displayModeBar": False,
+                                            "doubleClick": False,  # 禁用双击缩放
+                                            "responsive": True,
+                                        },
+                                        style={
+                                            "margin": 0,
+                                            "padding": 0,
+                                            "width": "100%",
+                                            "height": "100%",
+                                        },
+                                        mathjax=True,
+                                    ),
+                                ),
                             ],
                         )
                     ],

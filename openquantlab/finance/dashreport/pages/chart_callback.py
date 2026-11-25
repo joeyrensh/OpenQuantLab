@@ -280,6 +280,24 @@ class ChartCallback:
                     },
                     "children",
                 ),
+                Output(
+                    {
+                        "type": "initial-chart-loading",
+                        "page": MATCH,
+                        "chart": MATCH,
+                        "index": MATCH,
+                    },
+                    "display",
+                ),
+                Output(
+                    {
+                        "type": "industry-trend-selector-container",
+                        "page": MATCH,
+                        "chart": MATCH,
+                        "index": MATCH,
+                    },
+                    "style",
+                ),
             ],
             Input("current-theme", "data"),
             Input("client-width", "data"),
@@ -326,9 +344,18 @@ class ChartCallback:
 
             # 动态计算对应的 style
             chart_style = self._get_chart_style(chart_type, client_width)
+            is_initial_trend_load = chart_type == "pnl_trend"
+            initial_loading_display = "hide" if is_initial_trend_load else no_update
+            selector_style = {"display": "block"} if is_initial_trend_load else no_update
 
             if key not in self._charts:
-                return no_update, no_update, selection_summary
+                return (
+                    no_update,
+                    no_update,
+                    selection_summary,
+                    initial_loading_display,
+                    selector_style,
+                )
 
             info = self._charts[key]
 
@@ -357,7 +384,7 @@ class ChartCallback:
                             first_trace, first_trace + traces_per_industry
                         ):
                             figure_patch["data"][trace_index]["visible"] = is_visible
-                    return figure_patch, no_update, selection_summary
+                    return figure_patch, no_update, selection_summary, no_update, no_update
 
             builder = info["builder"]
             datasets = info["datasets"]
@@ -381,6 +408,8 @@ class ChartCallback:
                             ),
                             chart_style,
                             selection_summary,
+                            initial_loading_display,
+                            selector_style,
                         )
                     pnl, cash, total_value = data_bundle["annual_return"]
                     fig = builder.annual_return(
@@ -401,6 +430,8 @@ class ChartCallback:
                             ),
                             chart_style,
                             selection_summary,
+                            initial_loading_display,
+                            selector_style,
                         )
                     fig = builder.calendar_heatmap(
                         page=page,
@@ -417,6 +448,8 @@ class ChartCallback:
                             ),
                             chart_style,
                             selection_summary,
+                            initial_loading_display,
+                            selector_style,
                         )
                     fig = builder.industry_strength_chart(
                         page=page,
@@ -433,6 +466,8 @@ class ChartCallback:
                             ),
                             chart_style,
                             selection_summary,
+                            initial_loading_display,
+                            selector_style,
                         )
                     fig = builder.strategy_chart(
                         page=page,
@@ -450,6 +485,8 @@ class ChartCallback:
                             ),
                             chart_style,
                             selection_summary,
+                            initial_loading_display,
+                            selector_style,
                         )
                     fig = builder.trade_info_chart(
                         page=page,
@@ -467,6 +504,8 @@ class ChartCallback:
                             ),
                             chart_style,
                             selection_summary,
+                            initial_loading_display,
+                            selector_style,
                         )
                     fig = builder.industry_pnl_trend(
                         page=page,
@@ -485,6 +524,8 @@ class ChartCallback:
                             ),
                             chart_style,
                             selection_summary,
+                            initial_loading_display,
+                            selector_style,
                         )
                     fig = builder.industry_position_treemap(
                         page=page,
@@ -502,6 +543,8 @@ class ChartCallback:
                             ),
                             chart_style,
                             selection_summary,
+                            initial_loading_display,
+                            selector_style,
                         )
                     fig = builder.industry_profit_treemap(
                         page=page,
@@ -511,13 +554,31 @@ class ChartCallback:
                     )
 
                 else:
-                    return no_update, no_update, selection_summary
+                    return (
+                        no_update,
+                        no_update,
+                        selection_summary,
+                        initial_loading_display,
+                        selector_style,
+                    )
 
-                return fig, chart_style, selection_summary
+                return (
+                    fig,
+                    chart_style,
+                    selection_summary,
+                    initial_loading_display,
+                    selector_style,
+                )
 
             except Exception as e:
                 print(f"⚠️ Chart generation failed. {key}: {e}")
-                return no_update, no_update, selection_summary
+                return (
+                    no_update,
+                    no_update,
+                    selection_summary,
+                    initial_loading_display,
+                    selector_style,
+                )
 
         self._callback_registered = True
 
