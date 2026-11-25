@@ -9,6 +9,7 @@ from typing import Any, Literal
 from plotly.subplots import make_subplots
 import re
 import colorsys
+from finance.utility.toolkit import ToolKit
 
 
 class ChartBuilder:
@@ -1646,13 +1647,19 @@ class ChartBuilder:
         selected_industries = {str(industry) for industry in selected_industries}
         df = df.sort_values("buy_date")
 
-        # Estimate the expected daily PnL change per currently-held symbol,
-        # then shrink it according to recent holdings stability and whether
-        # the move is broad-based or concentrated in a few symbols. Bootstrap
-        # centered industry-level changes for the uncertainty range.
+        # Build cumulative realized + unrealized PnL levels from the
+        # symbol-level, since-entry PnL snapshots. A closed position's final
+        # PnL remains in the industry total after the symbol disappears.
         horizon = 20
         simulations = 1000
         drift_shrinkage = 0.25
+        short_term_window = ToolKit.get_config(
+            "backtest_settings.window_metrics.short_term_window", default=5
+        )
+        factor_window = max(1, int(short_term_window) * 2)
+        # Keep roughly 80% of exponential drift weight inside the configured
+        # short-term window while allowing that window to change in Settings.
+        drift_half_life = factor_window / np.log2(5.0)
         last_date = df["buy_date"].max()
         forecast_dates = pd.bdate_range(
             start=last_date + pd.Timedelta(days=1), periods=horizon
@@ -1661,6 +1668,7 @@ class ChartBuilder:
         market_dates = pd.DatetimeIndex(df["buy_date"].drop_duplicates().sort_values())
 
         forecasts = {}
+        cumulative_histories = {}
         for index, industry in enumerate(industry_order):
             industry_history = (
                 df.loc[df["industry"] == industry]
@@ -1673,134 +1681,193 @@ class ChartBuilder:
             history = industry_history.reindex(market_dates, fill_value=0).to_numpy(
                 dtype=float
             )
+            expected_daily_change = 0.0
+            drift_factor = 1.0
+            uncertainty_scale = 1.0
+            if symbol_df is not None:
+                industry_symbols = symbol_df.loc[
+                    symbol_df["industry"] == industry,
+                    ["buy_date", "symbol", "pnl"],
+                ]
+                if not industry_symbols.empty:
+                    # Each value is cumulative PnL since that symbol's entry.
+                    # A continuing position contributes the day-over-day
+                    # difference; a symbol's first appearance after the
+                    # window's first date contributes its since-entry PnL.
+                    # The last row is on the exit date, so its final daily
+                    # change is included; after it disappears, its realized
+                    # PnL remains in the cumulative industry total.
+                    symbol_levels = industry_symbols.pivot_table(
+                        index="buy_date",
+                        columns="symbol",
+                        values="pnl",
+                        aggfunc="sum",
+                    ).reindex(market_dates)
+                    level_values = symbol_levels.to_numpy(dtype=float)
+                    present = np.isfinite(level_values)
+                    symbol_daily_changes = np.zeros(
+                        (max(len(market_dates) - 1, 0), level_values.shape[1]),
+                        dtype=float,
+                    )
+                    opens_by_day = np.zeros(max(len(market_dates) - 1, 0), dtype=int)
+                    closes_by_day = np.zeros_like(opens_by_day)
+
+                    for date_index in range(1, len(market_dates)):
+                        current_present = present[date_index]
+                        previous_present = present[date_index - 1]
+                        continuing = current_present & previous_present
+                        new_positions = current_present & ~previous_present
+                        closed_positions = previous_present & ~current_present
+                        day_index = date_index - 1
+                        symbol_daily_changes[day_index, continuing] = (
+                            level_values[date_index, continuing]
+                            - level_values[date_index - 1, continuing]
+                        )
+                        symbol_daily_changes[day_index, new_positions] = (
+                            level_values[date_index, new_positions]
+                        )
+                        opens_by_day[day_index] = int(new_positions.sum())
+                        closes_by_day[day_index] = int(closed_positions.sum())
+
+                    daily_changes = symbol_daily_changes.sum(axis=1)
+
+                    # Anchor the visible window at its first snapshot, then
+                    # accumulate daily changes. This carries closed positions'
+                    # final PnL forward instead of dropping it from the chart.
+                    history = np.r_[
+                        history[0], history[0] + np.cumsum(daily_changes)
+                    ]
+
+                    # The first date is a baseline: positions may have been
+                    # opened before this fixed 120-day window, so their level
+                    # cannot be interpreted as that day's PnL change.
+                else:
+                    daily_changes = np.diff(history)
+            else:
+                # Retain compatibility with data that has no symbol column.
+                daily_changes = np.diff(history)
+
+            cumulative_histories[industry] = history
             last_pnl = float(history[-1])
             forecast_median = np.full(horizon, last_pnl, dtype=float)
             forecast_low = forecast_median.copy()
             forecast_high = forecast_median.copy()
 
-            expected_daily_change = 0.0
-            stability_factor = 0.0
-            breadth_factor = 0.0
-            direction_factor = 0.0
-            position_count = 0
-            position_count_factor = 0.0
-            drift_confidence = 0.0
-            if symbol_df is not None:
-                current_symbols = symbol_df.loc[
-                    (symbol_df["buy_date"] == last_date)
-                    & (symbol_df["industry"] == industry),
-                    "symbol",
-                ].drop_duplicates()
-                position_count = len(current_symbols)
-                # A small number of holdings makes an industry-level signal
-                # less representative. The pseudo-count prevents confidence
-                # from reaching 100% just because a few names are held.
-                position_count_factor = position_count / (position_count + 4.0)
-
-                symbol_drifts = []
-                for symbol in current_symbols:
-                    symbol_history = (
-                        symbol_df.loc[
-                            (symbol_df["industry"] == industry)
-                            & (symbol_df["symbol"] == symbol),
-                            ["buy_date", "pnl"],
-                        ]
-                        .groupby("buy_date")["pnl"]
-                        .sum()
-                        .sort_index()
-                    )
-                    # Use the current uninterrupted holding episode only. A
-                    # missing daily row can mark a close/re-entry boundary;
-                    # forward-filling across it would create a false PnL jump.
-                    present_dates = set(symbol_history.index)
-                    current_episode_dates = []
-                    for symbol_date in reversed(market_dates):
-                        if symbol_date > last_date or symbol_date not in present_dates:
-                            break
-                        current_episode_dates.append(symbol_date)
-                    symbol_dates = pd.DatetimeIndex(current_episode_dates[::-1])
-                    symbol_levels = symbol_history.reindex(symbol_dates).to_numpy(
-                        dtype=float
-                    )
-                    symbol_changes = np.diff(symbol_levels)
-                    symbol_changes = symbol_changes[np.isfinite(symbol_changes)]
-                    if not len(symbol_changes):
-                        continue
-
-                    # Winsorize changes so one unusual move does not dominate
-                    # the current holding episode's drift estimate.
-                    lower, upper = np.quantile(symbol_changes, [0.05, 0.95])
-                    symbol_drifts.append(
-                        float(np.mean(np.clip(symbol_changes, lower, upper)))
-                    )
-
-                if symbol_drifts:
-                    abs_drift_total = float(np.sum(np.abs(symbol_drifts)))
-                    if abs_drift_total > np.finfo(float).eps:
-                        drift_weights = np.abs(symbol_drifts) / abs_drift_total
-                        effective_contributors = 1.0 / float(
-                            np.sum(np.square(drift_weights))
-                        )
-                        current_symbol_count = len(current_symbols)
-                        if current_symbol_count == 1:
-                            # With one name, concentration breadth is
-                            # unobservable; let the position-count factor
-                            # express the additional uncertainty instead.
-                            breadth_factor = 1.0
-                        elif current_symbol_count > 1:
-                            breadth_factor = float(
-                                np.clip(
-                                    (effective_contributors - 1.0)
-                                    / (current_symbol_count - 1.0),
-                                    0.0,
-                                    1.0,
-                                )
-                            )
-                        direction_factor = float(
-                            np.clip(
-                                abs(np.sum(symbol_drifts)) / abs_drift_total,
-                                0.0,
-                                1.0,
-                            )
-                        )
-
-                if len(current_symbols) > 0:
-                    active_symbols_by_date = (
-                        symbol_df.loc[symbol_df["industry"] == industry]
-                        .groupby("buy_date")["symbol"]
-                        .agg(lambda values: set(values))
-                    )
-                    stability_dates = market_dates[-(horizon + 1) :]
-                    stability_scores = []
-                    for previous_date, current_date in zip(
-                        stability_dates[:-1], stability_dates[1:]
-                    ):
-                        previous_set = active_symbols_by_date.get(previous_date, set())
-                        current_set = active_symbols_by_date.get(current_date, set())
-                        union = previous_set | current_set
-                        if union:
-                            stability_scores.append(
-                                len(previous_set & current_set) / len(union)
-                            )
-                    if stability_scores:
-                        stability_factor = float(np.mean(stability_scores))
-
-                drift_confidence = (
-                    stability_factor
-                    * breadth_factor
-                    * direction_factor
-                    * position_count_factor
-                )
-                raw_daily_drift = float(np.sum(symbol_drifts)) if symbol_drifts else 0.0
-                expected_daily_change = (
-                    raw_daily_drift * drift_shrinkage * drift_confidence
-                )
-
-            daily_changes = np.diff(history)
             daily_changes = daily_changes[np.isfinite(daily_changes)]
+            if len(daily_changes):
+                # Winsorize the full fixed history window, then give recent
+                # daily changes exponentially more weight when estimating drift.
+                lower, upper = np.quantile(daily_changes, [0.05, 0.95])
+                clipped_changes = np.clip(daily_changes, lower, upper)
+                change_ages = np.arange(len(clipped_changes) - 1, -1, -1)
+                recent_weights = np.power(0.5, change_ages / drift_half_life)
+                recent_weights /= recent_weights.sum()
+                robust_daily_drift = float(
+                    np.average(clipped_changes, weights=recent_weights)
+                )
+                expected_daily_change = robust_daily_drift * drift_shrinkage
+
+                if symbol_df is not None and not industry_symbols.empty:
+                    recent_count = min(factor_window, len(daily_changes))
+                    recent_symbol_changes = symbol_daily_changes[-recent_count:]
+                    recent_symbol_totals = recent_symbol_changes.sum(axis=0)
+                    active_symbols = present[-1]
+                    position_count = int(active_symbols.sum())
+
+                    # More active positions strengthen confidence, with
+                    # diminishing returns so a large industry does not
+                    # dominate the forecast solely because of its size.
+                    position_score = position_count / (position_count + 4.0)
+                    position_factor = 0.7 + 0.6 * position_score
+
+                    nonzero_symbol_totals = recent_symbol_totals[
+                        np.abs(recent_symbol_totals) > np.finfo(float).eps
+                    ]
+                    if (
+                        len(nonzero_symbol_totals)
+                        and abs(robust_daily_drift) > np.finfo(float).eps
+                    ):
+                        breadth_score = float(
+                            np.mean(
+                                np.sign(nonzero_symbol_totals)
+                                == np.sign(robust_daily_drift)
+                            )
+                        )
+                    else:
+                        breadth_score = 0.5
+                    breadth_factor = 0.7 + 0.6 * breadth_score
+
+                    recent_opens = int(opens_by_day[-recent_count:].sum())
+                    recent_closes = int(closes_by_day[-recent_count:].sum())
+                    event_total = recent_opens + recent_closes
+                    flow_balance = (
+                        (recent_opens - recent_closes) / event_total
+                        if event_total
+                        else 0.0
+                    )
+                    flow_factor = 1.0 + 0.2 * flow_balance
+                    flow_alignment = 0.5 + 0.5 * flow_balance
+
+                    recent_presence = present[-(recent_count + 1) :]
+                    retention_scores = []
+                    for previous_set, current_set in zip(
+                        recent_presence[:-1], recent_presence[1:]
+                    ):
+                        union_count = int(np.sum(previous_set | current_set))
+                        if union_count:
+                            retention_scores.append(
+                                float(np.sum(previous_set & current_set) / union_count)
+                            )
+                    retention_score = (
+                        float(np.mean(retention_scores)) if retention_scores else 1.0
+                    )
+
+                    # Estimate active holding age from consecutive observed
+                    # trading dates, capped at the same dynamic factor window.
+                    active_durations = []
+                    for symbol_index in np.flatnonzero(active_symbols):
+                        duration = 0
+                        for is_present in present[::-1, symbol_index]:
+                            if not is_present or duration >= factor_window:
+                                break
+                            duration += 1
+                        active_durations.append(duration / factor_window)
+                    duration_score = (
+                        float(np.mean(active_durations)) if active_durations else 0.0
+                    )
+                    stability_score = 0.5 * (retention_score + duration_score)
+                    stability_factor = 0.7 + 0.6 * stability_score
+
+                    # These bounded, centered factors modify the recent-PnL
+                    # drift rather than adding a second PnL estimate.
+                    drift_factor = float(
+                        np.clip(
+                            position_factor
+                            * breadth_factor
+                            * flow_factor
+                            * stability_factor,
+                            0.9,
+                            1.1,
+                        )
+                    )
+                    confidence = float(
+                        np.mean(
+                            [
+                                position_score,
+                                breadth_score,
+                                flow_alignment,
+                                stability_score,
+                            ]
+                        )
+                    )
+                    uncertainty_scale = 1.5 - 0.7 * confidence
+                    expected_daily_change = (
+                        robust_daily_drift * drift_shrinkage * drift_factor
+                    )
+
             if len(daily_changes) >= 3:
-                # Use aggregate history for volatility and short-run dependence,
-                # while the symbol panel supplies the forecast's direction.
+                # Resample centered daily net PnL changes to retain short-run
+                # dependence in the cumulative forecast interval.
                 innovations = daily_changes - float(np.mean(daily_changes))
                 block_size = min(5, len(innovations))
                 max_block_start = len(innovations) - block_size
@@ -1820,7 +1887,7 @@ class ChartBuilder:
                         offsets = np.arange(stop - start)
                         sampled_changes[:, start:stop] = innovations[
                             block_starts[:, block_index, None] + offsets
-                        ]
+                        ] * uncertainty_scale
 
                     paths = last_pnl + np.cumsum(
                         expected_daily_change + sampled_changes, axis=1
@@ -1847,6 +1914,17 @@ class ChartBuilder:
                 "low": np.r_[last_pnl, forecast_low],
                 "high": np.r_[last_pnl, forecast_high],
             }
+
+        # Plot the same cumulative realized + unrealized series used to anchor
+        # the forecast. Without symbol-level data, `history` remains the
+        # original aggregate series for backwards compatibility.
+        df = pd.DataFrame(
+            [
+                {"buy_date": date, "industry": industry, "pnl": pnl}
+                for industry, history in cumulative_histories.items()
+                for date, pnl in zip(market_dates, history)
+            ]
+        )
 
         fig = make_subplots(
             rows=1,
