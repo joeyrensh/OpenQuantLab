@@ -223,7 +223,6 @@ class PageLayout:
                 html.Div(
                     className="chart-container",
                     children=[
-                        industry_selector,
                         dcc.Loading(
                             id=f"loading-{chart_type}-{self.prefix}",
                             type="circle",
@@ -246,6 +245,7 @@ class PageLayout:
                             color="var(--blue-line-color)",
                             fullscreen=False,
                             children=[
+                                industry_selector,
                                 dcc.Graph(
                                     id=self.app.chart_callback.get_chart_id(
                                         chart_type, self.prefix, index
