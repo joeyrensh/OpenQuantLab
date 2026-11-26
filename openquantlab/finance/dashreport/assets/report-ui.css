@@ -235,6 +235,10 @@
   padding-bottom: 4px;
 }
 
+#page-content .annual-return-card .chart-container {
+  z-index: 3;
+}
+
 #page-content .annual-return-metrics {
   position: absolute;
   right: 2px;
