@@ -127,21 +127,54 @@
   margin: 0;
   white-space: nowrap;
 }
-
 #page-content .kpi-card:has(.kpi-pct-up) {
-    border-top: 1px solid var(--positive-int-bg-color);
+  border-top: 1px solid var(--positive-int-bg-color);
 }
 
 #page-content .kpi-card:has(.kpi-pct-down) {
-    border-top: 1px solid var(--negative-int-bg-color);
+  border-top: 1px solid var(--negative-int-bg-color);
 }
 
 #page-content .kpi-card:has(.kpi-pct-neutral) {
-    border-top: 1px solid var(--text-color);
+  border-top: 1px solid var(--text-color);
 }
 
 #page-content .kpi-card:has(.kpi-date) {
-    border-top: 1px solid var(--text-color);
+  border-top: 1px solid var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  #page-content .kpi-card:has(.kpi-pct-up) {
+    border-top-color: color-mix(
+      in srgb,
+      var(--positive-int-bg-color) 50%,
+      var(--background-color)
+    );
+  }
+
+  #page-content .kpi-card:has(.kpi-pct-down) {
+    border-top-color: color-mix(
+      in srgb,
+      var(--negative-int-bg-color) 50%,
+      var(--background-color)
+    );
+  }
+
+  #page-content .kpi-card:has(.kpi-pct-neutral) {
+    border-top-color: color-mix(
+      in srgb,
+      var(--text-color) 50%,
+      var(--background-color)
+    );
+  }
+
+  #page-content .kpi-card:has(.kpi-date) {
+    border-top-color: color-mix(
+      in srgb,
+      var(--text-color) 50%,
+      var(--background-color)
+    );
+  }
 }
 
 /* Keep the date/status card compact and aligned with the metric cards. */
