@@ -314,19 +314,16 @@
 }
 
 #page-content .annual-return-chip--positive {
-  border-color: color-mix(in srgb, var(--positive-int-bg-color) 24%, var(--gridcolor));
-  background: color-mix(in srgb, var(--positive-int-bg-color) 10%, var(--background-color));
+  border-top: 1px solid var(--positive-int-bg-color);
   color: var(--positive-int-bg-color);
 }
 
 #page-content .annual-return-chip--negative {
-  border-color: color-mix(in srgb, var(--negative-int-bg-color) 24%, var(--gridcolor));
-  background: color-mix(in srgb, var(--negative-int-bg-color) 10%, var(--background-color));
+  border-top: 1px solid var(--negative-int-bg-color);
   color: var(--negative-int-bg-color);
 }
 
 #page-content .annual-return-chip--neutral {
-  background: var(--kpi-background);
   color: var(--text-color);
 }
 
