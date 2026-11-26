@@ -128,6 +128,22 @@
   white-space: nowrap;
 }
 
+#page-content .kpi-card:has(.kpi-pct-up) {
+    border-top: 1px solid var(--positive-int-bg-color);
+}
+
+#page-content .kpi-card:has(.kpi-pct-down) {
+    border-top: 1px solid var(--negative-int-bg-color);
+}
+
+#page-content .kpi-card:has(.kpi-pct-neutral) {
+    border-top: 1px solid var(--text-color);
+}
+
+#page-content .kpi-card:has(.kpi-date) {
+    border-top: 1px solid var(--text-color);
+}
+
 /* Keep the date/status card compact and aligned with the metric cards. */
 #page-content .kpi-card:has(.kpi-date) {
   display: grid;
