@@ -3,7 +3,7 @@
 :root {
   --report-card-shadow: 0 3px 14px rgba(31, 60, 100, 0.08);
   --progress-bar-length: 100%;
-  --track-height-px: 4px;
+  --track-height-px: 2px;
   --ratio-progress-track-color: color-mix(in srgb, var(--text-color) 16%, transparent);
   --ratio-progress-label-gap: 1px;
   --ratio-progress-cell-padding-inline: 2px;
@@ -19,12 +19,6 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --report-card-shadow: 0 3px 16px rgba(0, 0, 0, 0.22);
-  }
-}
-
-@media (max-width: 550px) {
-  :root {
-    --track-height-px: 4px;
   }
 }
 
