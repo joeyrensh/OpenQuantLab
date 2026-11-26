@@ -40,23 +40,10 @@ class PageLayout:
         }
 
         # 数据加载
-        self.data = ReportDataLoader.load(
-            prefix=prefix,
-            datasets=[
-                "overall",
-                "annual_return",
-                "heatmap",
-                "industry_strength",
-                "strategy",
-                "trade",
-                "pnl_trend",
-                "industry_position",
-                "industry_profit",
-                "category",
-                "detail",
-                "cn_etf",
-                "detail_short",
-            ],
+        self.data = (
+            ReportDataLoader.load(prefix=prefix, datasets=("pnl_trend",))
+            if "pnl_trend" in self.show_charts
+            else {}
         )
 
         self.cb = ChartBuilder()

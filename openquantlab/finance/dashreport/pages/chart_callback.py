@@ -396,7 +396,7 @@ class ChartCallback:
                     datasets=datasets,
                 )
 
-                time.sleep(0.1)  # 100ms延迟，确保loading有显示时间
+                # time.sleep(0.1)  # 100ms延迟，确保loading有显示时间
 
                 # ===== 图表分发 =====
                 if chart_type == "annual_return":
