@@ -70,7 +70,7 @@
 #page-content .kpi-card {
   min-width: 0;
   padding: 12px 14px;
-  row-gap: 15px;
+  row-gap: 25px;
   border: 1px solid var(--gridcolor);
   border-radius: 10px;
   background: var(--background-color);
@@ -548,7 +548,7 @@
 
   #page-content .kpi-card {
     padding: 6px;
-    row-gap: 10px;
+    row-gap: 15px;
   }
 
   #page-content .kpi-card:last-child {
