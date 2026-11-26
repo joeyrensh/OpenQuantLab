@@ -273,6 +273,28 @@ class TickerInfo:
                     }
                     target_set.remove(sym)  # 无论是否选中，都已处理，从待处理集合移除
 
+        # 各组不足配额时，从未入选的全局 activity 排名中补足
+        selected_symbols = list(dict.fromkeys(top_per_group))
+        target_count = len(groups) * top_n_per_group
+        fallback_symbols = sym_act.drop(index=selected_symbols, errors="ignore").head(
+            max(target_count - len(selected_symbols), 0)
+        ).index.tolist()
+        top_per_group = selected_symbols + fallback_symbols
+        if fallback_symbols:
+            print(
+                f"全局 activity 排名补足: {len(fallback_symbols)} 只，"
+                f"最终选出 {len(top_per_group)}/{target_count} 只"
+            )
+            for sym in fallback_symbols:
+                if sym in diag:
+                    diag[sym].update(
+                        {"status": "alive", "reason": None, "selected": True}
+                    )
+        elif len(top_per_group) < target_count:
+            print(
+                f"候选股票不足，最终选出 {len(top_per_group)}/{target_count} 只"
+            )
+
         # 处理未被任何组覆盖的存活目标
         for sym in list(target_set):
             diag[sym] = {"status": "filtered", "reason": "未出现在任何分组中"}

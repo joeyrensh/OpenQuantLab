@@ -118,6 +118,12 @@ if __name__ == "__main__":
         default=0,
         help="交易日偏移量，0表示取当前交易日，1表示T-1，2表示T-2（默认0）",
     )
+    parser.add_argument(
+        "--strategies",
+        nargs="+",
+        choices=("all", "cn", "cnetf", "cn_dynamic"),
+        help="指定要运行的策略，可传一个或多个：cn、cnetf、cn_dynamic，或 all",
+    )
     args = parser.parse_args()
 
     """美股交易日期 utc+8"""
@@ -196,17 +202,20 @@ if __name__ == "__main__":
 
         retry_call(do_task, max_retries=max_retries, delay=3)
 
-    # A股主要策略执行
-    print("-----------A股主策略执行-----------")
-    retry_backtest_and_send("cn", trade_date, force_run=args.force_run)
+    strategy_names = {
+        "cn": "A股主策略",
+        "cnetf": "A股ETF策略",
+        "cn_dynamic": "A股动态列表策略",
+    }
+    selected_strategies = args.strategies or list(strategy_names)
+    if "all" in selected_strategies:
+        if len(selected_strategies) != 1:
+            parser.error("--strategies all 不能与其他策略名称同时使用")
+        selected_strategies = list(strategy_names)
 
-    # ETF主要策略执行
-    print("-----------A股ETF策略执行-----------")
-    retry_backtest_and_send("cnetf", trade_date, force_run=args.force_run)
-
-    # A股动态列表执行
-    print("-----------A股动态列表策略执行-----------")
-    retry_backtest_and_send("cn_dynamic", trade_date, force_run=args.force_run)
+    for market in selected_strategies:
+        print(f"-----------{strategy_names[market]}执行-----------")
+        retry_backtest_and_send(market, trade_date, force_run=args.force_run)
 
     """ 结束进度条 """
     pbar.finish()

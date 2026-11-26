@@ -118,6 +118,12 @@ if __name__ == "__main__":
         default=0,
         help="交易日偏移量，0表示取当前交易日，1表示T-1，2表示T-2（默认0）",
     )
+    parser.add_argument(
+        "--strategies",
+        nargs="+",
+        choices=("all", "us", "us_dynamic"),
+        help="指定要运行的策略，可传一个或多个：us、us_dynamic，或 all",
+    )
     args = parser.parse_args()
 
     """美股交易日期 utc-4"""
@@ -190,17 +196,19 @@ if __name__ == "__main__":
 
         retry_call(do_task, max_retries=max_retries, delay=3)
 
-    # 美股主要策略执行
-    print("-----------美股主策略执行-----------")
-    retry_backtest_and_send("us", trade_date, force_run=args.force_run)
+    strategy_names = {
+        "us": "美股主策略",
+        "us_dynamic": "美股动态列表策略",
+    }
+    selected_strategies = args.strategies or list(strategy_names)
+    if "all" in selected_strategies:
+        if len(selected_strategies) != 1:
+            parser.error("--strategies all 不能与其他策略名称同时使用")
+        selected_strategies = list(strategy_names)
 
-    # # 固定列表追踪
-    # print("-----------美股固定列表策略执行-----------")
-    # retry_backtest_and_send("us_special", trade_date, force_run=args.force_run)
-
-    # 动态列表追踪
-    print("-----------美股动态列表策略执行-----------")
-    retry_backtest_and_send("us_dynamic", trade_date, force_run=args.force_run)
+    for market in selected_strategies:
+        print(f"-----------{strategy_names[market]}执行-----------")
+        retry_backtest_and_send(market, trade_date, force_run=args.force_run)
 
     """ 结束进度条 """
     pbar.finish()
