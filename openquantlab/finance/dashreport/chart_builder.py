@@ -2228,7 +2228,7 @@ class ChartBuilder:
                 opacity=1,
                 tiling=dict(
                     squarifyratio=1.2,
-                    pad=10,
+                    pad=5,
                 ),
             )
         )
@@ -2302,7 +2302,7 @@ class ChartBuilder:
                 opacity=1,
                 tiling=dict(
                     squarifyratio=1.2,
-                    pad=10,
+                    pad=5,
                 ),
             )
         )
