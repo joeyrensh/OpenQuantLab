@@ -10,6 +10,7 @@ import multiprocessing
 from multiprocessing import Manager
 
 from finance.dashreport.chart_builder import ChartBuilder
+from finance.dashreport.pages.chart_callback import ChartCallback
 from finance.dashreport.utils import Header, make_dash_format_table
 from finance.utility.toolkit import ToolKit
 from finance.utility.backtrader_exec import BacktraderExec
@@ -742,7 +743,11 @@ class BacktestPage:
 
         # ---------- 7. 收益与回撤图表 ----------
         @callback(
-            Output("backtest-pnl-chart", "children"),
+            [
+                Output("backtest-pnl-chart", "children"),
+                Output("backtest-annual-return-metrics", "children"),
+                Output("backtest-annual-return-metrics", "style"),
+            ],
             Input("backtest-data", "data"),
             Input("current-theme", "data"),
             Input("client-width", "data"),
@@ -750,34 +755,51 @@ class BacktestPage:
         )
         def up_pnl(d, theme, client_width):
             if not d or not d.get("pnl") or not d["pnl"].get("index"):
-                return html.Div(
-                    "Run backtest",
-                    style={"color": "#999", "padding": "60px", "textAlign": "center"},
+                return (
+                    html.Div(
+                        "Run backtest",
+                        style={
+                            "color": "#999",
+                            "padding": "60px",
+                            "textAlign": "center",
+                        },
+                    ),
+                    [],
+                    {"display": "none"},
                 )
             pnl = pd.Series(d["pnl"]["values"], index=pd.to_datetime(d["pnl"]["index"]))
-            return dcc.Graph(
-                figure=self.cb.annual_return(
-                    page="backtest",
-                    pnl=pnl,
-                    theme=theme,
-                    client_width=client_width or 1440,
-                    chart_time_range=ToolKit.get_config(
-                        "chart_display.chart_time_range", default=120
-                    ),
+            width = client_width or 1440
+            figure = self.cb.annual_return(
+                page="backtest",
+                pnl=pnl,
+                theme=theme,
+                client_width=width,
+                chart_time_range=ToolKit.get_config(
+                    "chart_display.chart_time_range", default=120
                 ),
-                config={
-                    "displayModeBar": False,
-                    "doubleClick": False,
-                    "responsive": True,
-                },
-                style={
-                    "margin": 0,
-                    "padding": 0,
-                    "width": "100%",
-                    "height": "100%",
-                    "aspectRatio": 1.6 if client_width <= 550 else 2.2,
-                },
-                mathjax=True,
+            )
+            metrics = ChartCallback.build_annual_return_metrics(
+                (figure.layout.meta or {}).get("annual_metrics", [])
+            )
+            return (
+                dcc.Graph(
+                    figure=figure,
+                    config={
+                        "displayModeBar": False,
+                        "doubleClick": False,
+                        "responsive": True,
+                    },
+                    style={
+                        "margin": 0,
+                        "padding": 0,
+                        "width": "100%",
+                        "height": "100%",
+                        "aspectRatio": 1.6 if width <= 550 else 2.2,
+                    },
+                    mathjax=True,
+                ),
+                metrics,
+                {"display": "block"},
             )
 
         @callback(
@@ -1336,32 +1358,43 @@ class BacktestPage:
                     className="text-secondary small page-sub-desc",
                 ),
                 html.Div(
-                    className="chart-container",
-                    id={"type": "collapsible", "page": "backtest", "index": 0},
-                    children=[
-                        dcc.Loading(
-                            id="loading-backtest-pnl",
-                            type="circle",
-                            delay_hide=1000,
-                            color="var(--blue-line-color)",
-                            fullscreen=False,
+                    [
+                        html.Div(
+                            className="chart-container",
                             children=[
-                                html.Div(
-                                    id="backtest-pnl-chart",
-                                    style={
-                                        "margin": 0,
-                                        "padding": 0,
-                                        "width": "100%",
-                                        "height": "100%",
-                                    },
+                                dcc.Loading(
+                                    id="loading-backtest-pnl",
+                                    type="circle",
+                                    delay_hide=1000,
+                                    color="var(--blue-line-color)",
+                                    fullscreen=False,
+                                    children=html.Div(
+                                        id="backtest-pnl-chart",
+                                        style={
+                                            "margin": 0,
+                                            "padding": 0,
+                                            "width": "100%",
+                                            "height": "100%",
+                                        },
+                                    ),
                                 )
                             ],
-                        )
+                        ),
+                        html.Div(
+                            id="backtest-annual-return-metrics",
+                            className="annual-return-metrics",
+                            style={"display": "none"},
+                        ),
                     ],
-                    style={"display": "block", "width": "100%"},
+                    id={"type": "collapsible", "page": "backtest", "index": 0},
+                    style={
+                        "display": "block",
+                        "width": "100%",
+                        "position": "relative",
+                    },
                 ),
             ],
-            className="twelve columns",
+            className="twelve columns annual-return-card",
         )
 
     def build_kline_card(self):
