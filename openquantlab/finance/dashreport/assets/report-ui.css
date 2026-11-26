@@ -235,6 +235,122 @@
   padding-bottom: 4px;
 }
 
+#page-content .annual-return-metrics {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  left: 2px;
+  z-index: 2;
+  display: grid;
+  container-type: inline-size;
+  gap: 4px;
+  padding: 3px 0 0;
+  border-top: 1px solid var(--gridcolor);
+  background: var(--background-color);
+}
+
+#page-content .chart-container:has(.dash-spinner) + .annual-return-metrics {
+  visibility: hidden;
+}
+
+#page-content .annual-return-year-row {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+#page-content .annual-return-year-label {
+  color: var(--subtitle-color);
+  font-family: var(--font-family-number);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+#page-content .annual-return-chip-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  min-width: 0;
+}
+
+#page-content .annual-return-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  min-width: 0;
+  /* Add 5% of the original chip height on each side (10% overall). */
+  padding: calc(10px + 0.06em) 10px;
+  border: 1px solid var(--gridcolor);
+  border-radius: 8px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+#page-content .annual-return-metric-label {
+  overflow: hidden;
+  color: var(--text-color);
+  font-weight: 400;
+  opacity: 0.78;
+  text-overflow: ellipsis;
+}
+
+#page-content .annual-return-metric-label > abbr {
+  display: none;
+  text-decoration: none;
+}
+
+#page-content .annual-return-metric-label > span {
+  display: inline;
+}
+
+#page-content .annual-return-metric-value {
+  flex: 0 0 auto;
+  font-family: var(--font-family-number);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+#page-content .annual-return-chip--positive {
+  border-color: color-mix(in srgb, var(--positive-int-bg-color) 24%, var(--gridcolor));
+  background: color-mix(in srgb, var(--positive-int-bg-color) 10%, var(--background-color));
+  color: var(--positive-int-bg-color);
+}
+
+#page-content .annual-return-chip--negative {
+  border-color: color-mix(in srgb, var(--negative-int-bg-color) 24%, var(--gridcolor));
+  background: color-mix(in srgb, var(--negative-int-bg-color) 10%, var(--background-color));
+  color: var(--negative-int-bg-color);
+}
+
+#page-content .annual-return-chip--neutral {
+  background: var(--kpi-background);
+  color: var(--text-color);
+}
+
+@media (max-width: 550px) {
+  #page-content .annual-return-chip-list {
+    grid-template-columns: repeat(4, minmax(max-content, 1fr));
+    gap: 3px;
+  }
+
+  #page-content .annual-return-chip {
+    gap: 2px;
+    /* Add 2.5% per side for 5% overall height; use tighter horizontal padding. */
+    padding: calc(4.25px + 0.03em) 2px;
+  }
+
+  #page-content .annual-return-metric-label > abbr {
+    display: inline;
+  }
+
+  #page-content .annual-return-metric-label > span {
+    display: none;
+  }
+}
+
 #page-content .sub_page > .row {
   margin-top: 14px;
 }

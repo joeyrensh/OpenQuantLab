@@ -187,6 +187,68 @@ class ChartCallback:
             for industry in selected_industries
         ]
 
+    @staticmethod
+    def build_annual_return_metrics(year_groups):
+        """Render annual performance metrics as compact, responsive chips."""
+        if not year_groups:
+            return []
+
+        metric_labels = {
+            "Ann.R": ("AnnR", "Annual Return"),
+            "Cum.R": ("CumR", "Cumulative Return"),
+            "Max.DD": ("MDD", "Max Drawdown"),
+            "Daily 5%": ("P5", "Daily Risk"),
+        }
+        latest_year = str(year_groups[0].get("year", ""))
+        rows = []
+        for group in year_groups:
+            year = str(group.get("year", ""))
+            chips = []
+            for metric in group.get("metrics", []):
+                value = str(metric.get("value", ""))
+                label = str(metric.get("label", ""))
+                short_label, full_label = metric_labels.get(label, (label, label))
+                tone = "neutral"
+                if year == latest_year:
+                    try:
+                        numeric_value = float(value.replace("%", ""))
+                        if numeric_value > 0:
+                            tone = "positive"
+                        elif numeric_value < 0:
+                            tone = "negative"
+                    except (TypeError, ValueError):
+                        pass
+
+                chips.append(
+                    html.Span(
+                        [
+                            html.Span(
+                                [
+                                    html.Abbr(short_label, title=full_label),
+                                    html.Span(full_label),
+                                ],
+                                className="annual-return-metric-label",
+                            ),
+                            html.Strong(
+                                value,
+                                className="annual-return-metric-value",
+                            ),
+                        ],
+                        className=f"annual-return-chip annual-return-chip--{tone}",
+                    )
+                )
+
+            rows.append(
+                html.Div(
+                    [
+                        html.Span(year, className="annual-return-year-label"),
+                        html.Div(chips, className="annual-return-chip-list"),
+                    ],
+                    className="annual-return-year-row",
+                )
+            )
+        return rows
+
     # =========================
     # 全局唯一回调
     # =========================
@@ -298,6 +360,15 @@ class ChartCallback:
                     },
                     "style",
                 ),
+                Output(
+                    {
+                        "type": "annual-return-metrics",
+                        "page": MATCH,
+                        "chart": MATCH,
+                        "index": MATCH,
+                    },
+                    "children",
+                ),
             ],
             Input("current-theme", "data"),
             Input("client-width", "data"),
@@ -355,6 +426,7 @@ class ChartCallback:
                     selection_summary,
                     initial_loading_display,
                     selector_style,
+                    no_update,
                 )
 
             info = self._charts[key]
@@ -384,7 +456,14 @@ class ChartCallback:
                             first_trace, first_trace + traces_per_industry
                         ):
                             figure_patch["data"][trace_index]["visible"] = is_visible
-                    return figure_patch, no_update, selection_summary, no_update, no_update
+                    return (
+                        figure_patch,
+                        no_update,
+                        selection_summary,
+                        no_update,
+                        no_update,
+                        no_update,
+                    )
 
             builder = info["builder"]
             datasets = info["datasets"]
@@ -410,6 +489,7 @@ class ChartCallback:
                             selection_summary,
                             initial_loading_display,
                             selector_style,
+                            [],
                         )
                     pnl, cash, total_value = data_bundle["annual_return"]
                     fig = builder.annual_return(
@@ -432,6 +512,7 @@ class ChartCallback:
                             selection_summary,
                             initial_loading_display,
                             selector_style,
+                            no_update,
                         )
                     fig = builder.calendar_heatmap(
                         page=page,
@@ -450,6 +531,7 @@ class ChartCallback:
                             selection_summary,
                             initial_loading_display,
                             selector_style,
+                            no_update,
                         )
                     fig = builder.industry_strength_chart(
                         page=page,
@@ -468,6 +550,7 @@ class ChartCallback:
                             selection_summary,
                             initial_loading_display,
                             selector_style,
+                            no_update,
                         )
                     fig = builder.strategy_chart(
                         page=page,
@@ -487,6 +570,7 @@ class ChartCallback:
                             selection_summary,
                             initial_loading_display,
                             selector_style,
+                            no_update,
                         )
                     fig = builder.trade_info_chart(
                         page=page,
@@ -506,6 +590,7 @@ class ChartCallback:
                             selection_summary,
                             initial_loading_display,
                             selector_style,
+                            no_update,
                         )
                     fig = builder.industry_pnl_trend(
                         page=page,
@@ -526,6 +611,7 @@ class ChartCallback:
                             selection_summary,
                             initial_loading_display,
                             selector_style,
+                            no_update,
                         )
                     fig = builder.industry_position_treemap(
                         page=page,
@@ -545,6 +631,7 @@ class ChartCallback:
                             selection_summary,
                             initial_loading_display,
                             selector_style,
+                            no_update,
                         )
                     fig = builder.industry_profit_treemap(
                         page=page,
@@ -560,14 +647,23 @@ class ChartCallback:
                         selection_summary,
                         initial_loading_display,
                         selector_style,
+                        no_update,
                     )
 
+                annual_metrics = (
+                    self.build_annual_return_metrics(
+                        (fig.layout.meta or {}).get("annual_metrics", [])
+                    )
+                    if chart_type == "annual_return"
+                    else no_update
+                )
                 return (
                     fig,
                     chart_style,
                     selection_summary,
                     initial_loading_display,
                     selector_style,
+                    annual_metrics,
                 )
 
             except Exception as e:
@@ -578,6 +674,7 @@ class ChartCallback:
                     selection_summary,
                     initial_loading_display,
                     selector_style,
+                    no_update,
                 )
 
         self._callback_registered = True

@@ -750,6 +750,17 @@ legend {
   font-weight: 300 !important;
 }
 
+/* Annual Return HTML labels use the same container-based responsive scaling. */
+#page-content .annual-return-metrics .annual-return-metric-label {
+  font-size: clamp(0.85rem, 2.5cqw, 1.2rem) !important;
+}
+
+#page-content .annual-return-metrics .annual-return-chip,
+#page-content .annual-return-metrics .annual-return-year-label,
+#page-content .annual-return-metrics .annual-return-metric-value {
+  font-size: clamp(1.05rem, 2.5cqw, 1.5rem) !important;
+}
+
 #page-content .chart-container .earnings-trend-select-overlay,
 #page-content .chart-container .earnings-trend-select-overlay .Select-option {
   font-size: clamp(1.05rem, 2.5cqw, 1.5rem) !important;

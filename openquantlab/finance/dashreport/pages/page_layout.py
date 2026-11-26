@@ -214,46 +214,25 @@ class PageLayout:
                 ),
                 self._build_description(self.section_descriptions[chart_type]),
                 html.Div(
-                    className="chart-container",
-                    children=[
-                        dcc.Loading(
-                            id={
-                                "type": "initial-chart-loading",
-                                "page": self.prefix,
-                                "chart": chart_type,
-                                "index": index,
-                            },
-                            type="circle",
-                            delay_hide=1000,
-                            display="show" if is_earnings_trend else "hide",
-                            style={
-                                "width": "100%",
-                                "height": "100%",
-                                "position": "relative",
-                                "zIndex": 1,
-                                "display": "flex",
-                                "justifyContent": "center",
-                                "alignItems": "center",
-                            },
-                            parent_style={
-                                "width": "100%",
-                                "height": "100%",
-                                "display": "flex",
-                                "justifyContent": "center",
-                                "alignItems": "center",
-                            },
-                            color="var(--blue-line-color)",
-                            fullscreen=False,
+                    [
+                        html.Div(
+                            className="chart-container",
                             children=[
-                                industry_selector,
                                 dcc.Loading(
-                                    id=f"loading-{chart_type}-{self.prefix}",
+                                    id={
+                                        "type": "initial-chart-loading",
+                                        "page": self.prefix,
+                                        "chart": chart_type,
+                                        "index": index,
+                                    },
                                     type="circle",
                                     delay_hide=1000,
+                                    display="show" if is_earnings_trend else "hide",
                                     style={
                                         "width": "100%",
                                         "height": "100%",
                                         "position": "relative",
+                                        "zIndex": 1,
                                         "display": "flex",
                                         "justifyContent": "center",
                                         "alignItems": "center",
@@ -267,30 +246,73 @@ class PageLayout:
                                     },
                                     color="var(--blue-line-color)",
                                     fullscreen=False,
-                                    children=dcc.Graph(
-                                        id=self.app.chart_callback.get_chart_id(
-                                            chart_type, self.prefix, index
+                                    children=[
+                                        industry_selector,
+                                        dcc.Loading(
+                                            id=f"loading-{chart_type}-{self.prefix}",
+                                            type="circle",
+                                            delay_hide=1000,
+                                            style={
+                                                "width": "100%",
+                                                "height": "100%",
+                                                "position": "relative",
+                                                "display": "flex",
+                                                "justifyContent": "center",
+                                                "alignItems": "center",
+                                            },
+                                            parent_style={
+                                                "width": "100%",
+                                                "height": "100%",
+                                                "display": "flex",
+                                                "justifyContent": "center",
+                                                "alignItems": "center",
+                                            },
+                                            color="var(--blue-line-color)",
+                                            fullscreen=False,
+                                            children=dcc.Graph(
+                                                id=self.app.chart_callback.get_chart_id(
+                                                    chart_type, self.prefix, index
+                                                ),
+                                                # figure=None,
+                                                config={
+                                                    "displayModeBar": False,
+                                                    "doubleClick": False,  # 禁用双击缩放
+                                                    "responsive": True,
+                                                },
+                                                style={
+                                                    "margin": 0,
+                                                    "padding": 0,
+                                                    "width": "100%",
+                                                    "height": "100%",
+                                                },
+                                                mathjax=True,
+                                            ),
                                         ),
-                                        # figure=None,
-                                        config={
-                                            "displayModeBar": False,
-                                            "doubleClick": False,  # 禁用双击缩放
-                                            "responsive": True,
-                                        },
-                                        style={
-                                            "margin": 0,
-                                            "padding": 0,
-                                            "width": "100%",
-                                            "height": "100%",
-                                        },
-                                        mathjax=True,
-                                    ),
-                                ),
+                                    ],
+                                )
                             ],
-                        )
+                        ),
+                        html.Div(
+                            id={
+                                "type": "annual-return-metrics",
+                                "page": self.prefix,
+                                "chart": chart_type,
+                                "index": index,
+                            },
+                            className="annual-return-metrics",
+                            style={
+                                "display": "block" if chart_type == "annual_return" else "none"
+                            },
+                        ),
                     ],
                     id={"type": "collapsible", "page": self.prefix, "index": index},
-                    style={"display": "block", "width": "100%"},
+                    style={
+                        "display": "block",
+                        "width": "100%",
+                        "position": (
+                            "relative" if chart_type == "annual_return" else "static"
+                        ),
+                    },
                 ),
             ],
             className=(

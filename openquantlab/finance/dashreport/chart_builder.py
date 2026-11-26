@@ -2327,61 +2327,6 @@ class ChartBuilder:
 
         return fig
 
-    def _get_responsive_config(self, client_width):
-        """
-        基于设备断点 (Breakpoints) 的离散配置系统
-        摒弃连续浮点数计算，彻底解决 Plotly 表格与 K 线图缝隙脱节的问题
-        """
-        w = client_width if (client_width and client_width > 0) else 1440
-
-        # 1. 大屏 / Mac Safari 端 (>= 1200px) -> 1.2rem 视觉体系
-        if w >= 1200:
-            return {
-                "scale": 1.0,
-                "main_font": 16,
-                "table_font": 16,
-                "header_h": 37,
-                "cell_h": 38,
-                "gap_ratio": 0.05,  # 图表与表格之间保留 5% 高度
-                "table_ratio_cap": 0.62,  # 为表格及窄屏换行预留足够高度
-            }
-
-        # 2. 中屏 / 笔记本 & iPad 横屏 (768px ~ 1199px) -> 1.1rem 视觉体系
-        elif w >= 768:
-            return {
-                "scale": 0.9,
-                "main_font": 14,
-                "table_font": 14,
-                "header_h": 38,
-                "cell_h": 39,
-                "gap_ratio": 0.06,
-                "table_ratio_cap": 0.62,
-            }
-
-        # 3. 平板竖屏 (550px ~ 767px) -> 1.0rem 视觉体系
-        elif w >= 550:
-            return {
-                "scale": 0.8,
-                "main_font": 13,
-                "table_font": 13,
-                "header_h": 28,
-                "cell_h": 29,
-                "gap_ratio": 0.06,
-                "table_ratio_cap": 0.62,
-            }
-
-        # 4. 小屏 / 手机端 (< 550px) -> 0.9rem 极简体系
-        else:
-            return {
-                "scale": 0.65,
-                "main_font": 10,
-                "table_font": 10,
-                "header_h": 21,
-                "cell_h": 22,
-                "gap_ratio": 0.06,
-                "table_ratio_cap": 0.62,
-            }
-
     def annual_return(
         self,
         page,
@@ -2410,11 +2355,9 @@ class ChartBuilder:
         cfg = self.theme_config.get(theme, self.theme_config["light"])
         hover_config = self.theme_config.get(theme, self.theme_config["light"])
         text_color = cfg["text-color"]
-        layout_cfg = self._get_responsive_config(client_width)
         scale, base_font = self._get_font_sizes(
             client_width, base_font=16, min_scale=0.65, max_scale=1.05
         )
-        table_font = layout_cfg["table_font"]
         # =========================
         # 3. 收益 / 回撤计算
         # =========================
@@ -2507,11 +2450,11 @@ class ChartBuilder:
                 # Use the historical midpoint, the split date, and the recent
                 # midpoint to balance the labels across the full chart.
                 history_tick = history_count // 2
-                xaxis_tickvals = [cumulative.index[history_tick]]
-                xaxis_ticktext = [cumulative.index[history_tick].strftime("%Y-%m")]
-                # Both the split date and recent midpoint are labeled below as
-                # paper annotations. Ticks at the sub-axis edges are clipped
-                # inconsistently by Plotly at different container widths.
+                history_mid = cumulative.index[history_tick]
+                # Render all split-window dates as annotations on one shared
+                # baseline; native axis ticks otherwise sit at a different y.
+                xaxis_tickvals = []
+                xaxis_ticktext = []
                 xaxis2_tickvals = []
                 xaxis2_ticktext = []
             else:
@@ -2562,62 +2505,8 @@ class ChartBuilder:
         for col in perf_fmt.columns:
             perf_fmt[col] = perf_fmt[col].apply(lambda x: f"{x * 100:.2f}%")
 
-        # =========================
-        # 5. 表格数据（转置：年份为行，指标为列，并按年份降序排列）
-        # =========================
-        df_transposed = perf_fmt.reset_index().rename(columns={"index": "Year"})
-        df_transposed = df_transposed.sort_values("Year", ascending=False).reset_index(
-            drop=True
-        )
-
-        table_columns = ["Year"] + list(perf_fmt.columns)
-        table_data = df_transposed.values.tolist()
-        table_df = pd.DataFrame(table_data, columns=table_columns)
-
-        # =========================
-        # 6. 表格颜色（仅最新年份行（第一行）的指标根据正负着色）
-        # =========================
-        latest_year = table_df.iloc[0]["Year"]  # 最新年份
-
-        font_colors = []
-        for i, row in table_df.iterrows():
-            row_colors = []
-            for j, col in enumerate(table_columns):
-                if j == 0:
-                    row_colors.append(text_color)
-                else:
-                    val_str = row[col]
-                    if val_str and val_str != "":
-                        try:
-                            num_val = float(val_str.replace("%", ""))
-                            if row["Year"] == latest_year:
-                                color = (
-                                    cfg["positive-int-color"]
-                                    if num_val >= 0
-                                    else cfg["negative-int-color"]
-                                )
-                            else:
-                                color = text_color
-                        except:
-                            color = text_color
-                    else:
-                        color = text_color
-                    row_colors.append(color)
-            font_colors.append(row_colors)
-
-        # 转换为列优先（与 cell_values 的列顺序一致）
-        font_colors_by_col = [
-            [font_colors[i][j] for i in range(len(table_df))]
-            for j in range(len(table_columns))
-        ]
-        font_weights_by_col = ["normal"] * len(table_columns)
-        font_sizes_by_col = [table_font] * len(table_columns)
-
-        # 准备表格单元格数据（列优先）
-        cell_values = [table_df[col].tolist() for col in table_columns]
-
-        # 表头颜色（原 header 部分）
-        header_values = table_columns
+        # 两年统计按年份倒序展示，最新年份的指标按正负值着色。
+        metric_rows = perf_fmt.sort_index(ascending=False)
 
         # =========================
         # 7. 创建图表
@@ -3043,126 +2932,47 @@ class ChartBuilder:
                         )
                     )
 
-        # =========================
-        # 13. 布局设置（上下结构：图占上部，表占下部，中间留间距）
-        # =========================
-        # CHART_DOMAIN_Y = [0.34, 1.0]
-        # TABLE_DOMAIN_Y = [0.0, 0.27]
-
-        # 计算 Table 绝对像素高度及画布占比
-        num_rows = len(cell_values[0]) if cell_values and len(cell_values) > 0 else 0
-        table_pixel_height = layout_cfg["header_h"] + (layout_cfg["cell_h"] * num_rows)
-
-        # 依据图表卡片的实际内容宽度和 aspect-ratio 估算画布高度。
+        # Reserve the graph's bottom strip for the external annual metric chips
+        # and keep the date labels directly between the plot and the chips.
         screen_width = client_width if client_width and client_width > 0 else 1440
         if screen_width >= 1200:
-            page_width = min(screen_width, 260 * 96 / 25.4)  # .page 的 260mm
+            page_width = min(screen_width, 260 * 96 / 25.4)
         elif screen_width <= 550:
-            page_width = screen_width * 0.99 - 20  # 手机端 .page 左右内边距
+            page_width = screen_width * 0.99 - 20
         else:
             page_width = screen_width
-
-        # report-ui.css 的 annual-return 卡片左右各有 14px 内边距。
         graph_width = max(240, page_width - 28)
         aspect_ratio = 1.6 if screen_width <= 550 else 2.2
-        base_canvas_height = graph_width / aspect_ratio
-        raw_table_ratio = (table_pixel_height + 2) / base_canvas_height
-
-        # table_pixel_height 已包含边框余量，按实际所需像素分配 domain。
-        table_y_ratio = min(layout_cfg["table_ratio_cap"], max(0.16, raw_table_ratio))
-
-        # 无缝垂直 Domain 计算
-        TABLE_DOMAIN_Y = [0.0, round(table_y_ratio, 3)]
-        CHART_DOMAIN_Y = [round(table_y_ratio + layout_cfg["gap_ratio"], 3), 1.0]
+        graph_height = graph_width / aspect_ratio
+        metric_font = max(14.4, min(graph_width * 0.025, 20.0))
+        metric_panel_height = 2 * (metric_font * 1.2 + 10) + 8
+        date_font = max(16.8, min(graph_width * 0.025, 24.0))
+        date_label_height = date_font
+        panel_y = metric_panel_height / graph_height
+        date_band = date_label_height / graph_height
+        date_label_y = panel_y
+        chart_domain_bottom = min(0.65, panel_y + date_band)
+        CHART_DOMAIN_Y = [round(chart_domain_bottom, 3), 1.0]
 
         if split_history:
-            # Keep the split date in the gap and place a second date at the
-            # midpoint of the focus window. This balances the labels across
-            # both time segments instead of pinning one to the far right.
-            fig.add_annotation(
-                x=0.5,
-                y=(TABLE_DOMAIN_Y[1] + CHART_DOMAIN_Y[0]) / 2,
-                xref="paper",
-                yref="paper",
-                text=focus_start.strftime("%Y-%m"),
-                showarrow=False,
-                xanchor="center",
-                yanchor="middle",
-                font=dict(size=base_font, color=text_color, family=self.font_family),
-            )
-            fig.add_annotation(
-                x=chart_position_for_date(focus_mid),
-                y=(TABLE_DOMAIN_Y[1] + CHART_DOMAIN_Y[0]) / 2,
-                xref="paper",
-                yref="paper",
-                text=focus_mid.strftime("%Y-%m"),
-                showarrow=False,
-                xanchor="center",
-                yanchor="middle",
-                font=dict(size=base_font, color=text_color, family=self.font_family),
-            )
-
-        # go.Table 的 SVG cell rect 在不同画布宽度下会受到裁切和缩放影响，
-        # 因此用 paper 坐标直接绘制表格的水平边界，保证宽窄屏线宽一致。
-        table_divider_shapes = []
-        table_domain_height = TABLE_DOMAIN_Y[1] - TABLE_DOMAIN_Y[0]
-        if table_pixel_height > 0 and table_domain_height > 0:
-            row_boundaries = [0, layout_cfg["header_h"]]
-            row_boundaries.extend(
-                layout_cfg["header_h"] + row * layout_cfg["cell_h"]
-                for row in range(1, num_rows + 1)
-            )
-            for boundary in row_boundaries:
-                y = TABLE_DOMAIN_Y[0] + table_domain_height * (
-                    1 - boundary / table_pixel_height
-                )
-                table_divider_shapes.append(
-                    dict(
-                        type="line",
-                        xref="paper",
-                        yref="paper",
-                        x0=0,
-                        x1=1,
-                        y0=y,
-                        y1=y,
-                        layer="above",
-                        # 相邻单元格原本各贡献 0.5px 描边，叠加后约为 1px；
-                        # 独立绘制边界时用 1px 保持视觉粗细一致。
-                        line=dict(color=cfg["border-color"], width=1),
-                    )
-                )
-
-        # 添加 Table (将尺寸用 layout_cfg，色彩用 theme_cfg)
-        fig.add_trace(
-            go.Table(
-                domain=dict(x=[0.0, 1.0], y=TABLE_DOMAIN_Y),
-                header=dict(
-                    values=header_values,
-                    fill_color=cfg["table-header-color"],
-                    line=dict(color=cfg["border-color"], width=0),
+            for date, x_position in (
+                (history_mid, chart_position_for_date(history_mid)),
+                (focus_start, 0.5),
+                (focus_mid, chart_position_for_date(focus_mid)),
+            ):
+                fig.add_annotation(
+                    x=x_position,
+                    y=date_label_y,
+                    xref="paper",
+                    yref="paper",
+                    text=date.strftime("%Y-%m"),
+                    showarrow=False,
+                    xanchor="center",
+                    yanchor="bottom",
                     font=dict(
-                        size=layout_cfg["table_font"],
-                        color=cfg["text-color"],
-                        family=self.font_family,
+                        size=base_font, color=text_color, family=self.font_family
                     ),
-                    align=["left"] * len(header_values),
-                    height=layout_cfg["header_h"],
-                ),
-                cells=dict(
-                    values=cell_values,
-                    fill_color=cfg["table-cell-color"],
-                    line=dict(color=cfg["border-color"], width=0),
-                    font=dict(
-                        size=font_sizes_by_col,
-                        color=font_colors_by_col,
-                        family=self.font_family,
-                        weight=font_weights_by_col,
-                    ),
-                    align=["left"] * len(header_values),
-                    height=layout_cfg["cell_h"],
-                ),
-            )
-        )
+                )
 
         legend_absolute_x = 0
 
@@ -3202,7 +3012,7 @@ class ChartBuilder:
             )
 
         fig.update_layout(
-            shapes=chart_divider_shapes + table_divider_shapes,
+            shapes=chart_divider_shapes,
             dragmode=False,
             autosize=True,
             margin=dict(l=0, r=0, t=0, b=0),
@@ -3335,6 +3145,19 @@ class ChartBuilder:
                 visible=split_history,
             ),
         )
+
+        fig.layout.meta = {
+            "annual_metrics": [
+                {
+                    "year": str(year),
+                    "metrics": [
+                        {"label": column, "value": str(row[column])}
+                        for column in metric_rows.columns
+                    ],
+                }
+                for year, row in metric_rows.iterrows()
+            ]
+        }
 
         return fig
 
