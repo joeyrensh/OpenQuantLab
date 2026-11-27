@@ -222,7 +222,7 @@ class DynamicMarketReport:
         return by_industry, summary
 
     def _load_corporate_actions(self, symbols):
-        """Load the latest as-of version of the market's two-year action history."""
+        """Load one-year dividend and split events using the report's data units."""
         market_dir = FINANCE_ROOT / f"{self.base_market}stockinfo"
         as_of = pd.Timestamp(self.trade_date)
         versioned = []
@@ -264,47 +264,50 @@ class DynamicMarketReport:
             self._progress(f"公司行动文件无报告日期之前的数据：{source_path.name}")
             return {}, source_path.name
 
-        cutoff = as_of - pd.DateOffset(years=2)
-        coverage_start = max(cutoff, source_rows["date"].min())
-        two_year_coverage = source_rows["date"].min() <= cutoff
+        cutoff = as_of - pd.DateOffset(years=1)
+        one_year_coverage = source_rows["date"].min() <= cutoff
         events = source_rows[
             source_rows["date"].ge(cutoff)
             & (source_rows["dividend"].gt(0) | (source_rows["split_ratio"].gt(0) & source_rows["split_ratio"].ne(1)))
             & source_rows["symbol"].isin(symbols)
-        ]
-        currency = "¥" if self.base_market == "cn" else "$"
+        ].groupby(["symbol", "date"], as_index=False).agg(
+            {"dividend": "sum", "split_ratio": "prod"}
+        )
+        dividend_share_factor = float(
+            self.analysis.get("corporate_actions", {})
+            .get("dividend_amount_basis_shares", {})
+            .get(self.base_market, 1)
+        )
+        if dividend_share_factor <= 0:
+            dividend_share_factor = 1.0
         summaries = {}
         for symbol in symbols:
             rows = events[events["symbol"].eq(symbol)].sort_values("date")
-            if rows.empty:
-                if two_year_coverage:
-                    detail = "近2年未见分红或拆并股记录"
-                else:
-                    detail = f"未匹配到公司行动记录（文件覆盖自 {coverage_start:%Y-%m-%d}）"
-            else:
-                parts = []
-                dividends = rows[rows["dividend"].gt(0)]
-                if not dividends.empty:
-                    parts.append(
-                        f"{len(dividends)}次现金分红，累计{currency}{dividends['dividend'].sum():.3f}/股"
-                    )
-                splits = rows[rows["split_ratio"].ne(1)]
-                if not splits.empty:
-                    latest_split = splits.iloc[-1]
-                    ratio = float(latest_split["split_ratio"])
-                    split_text = (
-                        f"送转/拆股 1变{ratio:g}"
-                        if ratio > 1
-                        else f"缩股 {1 / ratio:g}并1"
-                    )
-                    parts.append(f"{len(splits)}次拆并股，最近一次 {split_text}")
-                if not two_year_coverage:
-                    parts.insert(0, f"数据覆盖自 {coverage_start:%Y-%m-%d}")
-                parts.append(f"最近记录 {rows.iloc[-1]['date']:%Y-%m-%d}")
-                detail = "；".join(parts)
-            summaries[symbol] = detail
+            dividends = rows[rows["dividend"].gt(0)]
+            splits = rows[rows["split_ratio"].gt(0) & rows["split_ratio"].ne(1)]
+            split_events = []
+            for _, action in splits.iterrows():
+                ratio = float(action["split_ratio"])
+                ratio_text = (
+                    f"1变{ratio:g}" if ratio > 1 else f"{1 / ratio:g}合1"
+                )
+                split_events.append(
+                    {"date": action["date"].strftime("%Y-%m-%d"), "ratio": ratio_text}
+                )
+            summaries[symbol] = {
+                "actions_available": True,
+                "one_year_coverage": one_year_coverage,
+                "dividend_per_share_1y": (
+                    float(dividends["dividend"].sum()) / dividend_share_factor
+                ),
+                "dividend_source_basis_shares": dividend_share_factor,
+                # Normalize the CSV's configured source unit to per-share for yield.
+                "dividend_amount_1y": float(dividends["dividend"].sum()),
+                "dividend_events_1y": int(len(dividends)),
+                "split_events_1y": split_events,
+            }
         self._progress(
-            f"公司行动信息读取完成：版本 {source_path.name}，覆盖标的 {len(summaries)} 只。"
+            f"近一年分红/拆并股信息读取完成：版本 {source_path.name}，覆盖标的 {len(summaries)} 只。"
         )
         return summaries, source_path.name
 
@@ -328,6 +331,7 @@ class DynamicMarketReport:
 
         window = int(self.analysis.get("history", {}).get("trading_days_per_year", 252))
         end_date = pd.Timestamp(self.trade_date)
+        year_start = end_date - pd.DateOffset(years=1)
         for frame in feeds:
             if frame.empty or "symbol" not in frame or "datetime" not in frame:
                 continue
@@ -346,6 +350,13 @@ class DynamicMarketReport:
                 continue
             closes = period["close"]
             full_year = len(period) >= window + 1
+            year_prices = prices[prices["datetime"].ge(year_start)]
+            average_close_available = (
+                not year_prices.empty
+                and year_prices["datetime"].min() <= year_start + pd.Timedelta(days=10)
+                and year_prices["datetime"].max() >= end_date - pd.Timedelta(days=7)
+                and len(year_prices) >= 180
+            )
             return_1y = closes.iloc[-1] / closes.iloc[0] - 1 if full_year else None
             drawdown = closes / closes.cummax() - 1
             history[symbol] = {
@@ -356,6 +367,12 @@ class DynamicMarketReport:
                 "history_sessions": len(period) - 1,
                 "history_days": len(period),
                 "full_year_available": full_year,
+                "average_close_1y": (
+                    float(year_prices["close"].mean())
+                    if average_close_available
+                    else None
+                ),
+                "average_close_sessions_1y": len(year_prices),
             }
         full_year_count = sum(item["full_year_available"] for item in history.values())
         self._progress(
@@ -418,6 +435,7 @@ class DynamicMarketReport:
             main_industry = industry_by_symbol.get(symbol, {})
             industry_factors = industry_context.get(main_industry.get("industry"), {})
             history = history_by_symbol.get(symbol, {})
+            actions = action_by_symbol.get(symbol)
             pe = self._number(row.get("PE"))
             strategy = row.get(strategy_column)
             open_timestamp = pd.to_datetime(row.get("OPEN DATE"), errors="coerce")
@@ -431,6 +449,37 @@ class DynamicMarketReport:
                 if not pd.isna(open_timestamp)
                 else None
             )
+            average_close_1y = history.get("average_close_1y")
+            dividend_per_share_1y = (
+                actions.get("dividend_per_share_1y")
+                if actions and actions.get("one_year_coverage")
+                else None
+            )
+            dividend_yield_1y = (
+                dividend_per_share_1y / average_close_1y
+                if dividend_per_share_1y is not None and average_close_1y
+                else None
+            )
+            report_text = self.format["email"]["text"]
+            if not actions:
+                dividend_yield_note = report_text["corporate_actions_missing"]
+            elif not actions.get("one_year_coverage"):
+                dividend_yield_note = report_text["dividend_yield_actions_incomplete"]
+            elif average_close_1y is None:
+                dividend_yield_note = report_text["dividend_yield_price_incomplete"]
+            else:
+                dividend_yield_note = ""
+            split_events = actions.get("split_events_1y", []) if actions else []
+            if split_events:
+                split_detail = "；".join(
+                    f"{event['date']} {event['ratio']}"
+                    for event in split_events
+                )
+                split_status = f"是（{split_detail}）"
+            elif actions and actions.get("one_year_coverage"):
+                split_status = report_text["split_no"]
+            else:
+                split_status = report_text["split_unverified"]
             candidate = {
                 "symbol": symbol,
                 "name": str(row.get("NAME", "") or ""),
@@ -458,6 +507,25 @@ class DynamicMarketReport:
                 "history_sessions": history.get("history_sessions", 0),
                 "history_days": history.get("history_days", 0),
                 "full_year_available": history.get("full_year_available", False),
+                "average_close_1y": average_close_1y,
+                "average_close_sessions_1y": history.get(
+                    "average_close_sessions_1y", 0
+                ),
+                "dividend_yield_1y": dividend_yield_1y,
+                "dividend_amount_1y": (
+                    actions.get("dividend_amount_1y") if actions else None
+                ),
+                "dividend_events_1y": (
+                    actions.get("dividend_events_1y") if actions else None
+                ),
+                "dividend_source_basis_shares": (
+                    actions.get("dividend_source_basis_shares") if actions else None
+                ),
+                "dividend_yield_note": dividend_yield_note,
+                "split_status_1y": split_status,
+                "split_events_1y": (
+                    actions.get("split_events_1y", []) if actions else []
+                ),
                 "main_industry_matched": bool(main_industry.get("industry")),
                 "industry_factor_complete": (
                     main_industry.get("industry_rank_10d") is not None
@@ -490,9 +558,6 @@ class DynamicMarketReport:
                 ),
                 "industry_snapshot_is_current": industry_factors.get(
                     "industry_snapshot_is_current"
-                ),
-                "corporate_action_summary": action_by_symbol.get(
-                    symbol, "公司行动数据未核实"
                 ),
                 "technical_tag": "" if strategy is None or pd.isna(strategy) else str(strategy).strip(),
             }
@@ -865,7 +930,17 @@ class DynamicMarketReport:
                     "RETURN 1Y": item["return_1y"],
                     "MAX DD 1Y": item["max_drawdown_1y"],
                     "STRATEGY TAG": item["technical_tag"],
-                    "CORPORATE ACTIONS 2Y": item["corporate_action_summary"],
+                    "AVERAGE CLOSE 1Y": item["average_close_1y"],
+                    "AVERAGE CLOSE SESSIONS 1Y": item["average_close_sessions_1y"],
+                    "DIVIDEND YIELD 1Y": item["dividend_yield_1y"],
+                    "DIVIDEND AMOUNT 1Y SOURCE UNIT": item["dividend_amount_1y"],
+                    "DIVIDEND SOURCE BASIS SHARES": item["dividend_source_basis_shares"],
+                    "DIVIDEND EVENTS 1Y": item["dividend_events_1y"],
+                    "SPLIT STATUS 1Y": item["split_status_1y"],
+                    "SPLIT EVENTS 1Y": ";".join(
+                        f"{event['date']} {event['ratio']}"
+                        for event in item["split_events_1y"]
+                    ),
                     "INDUSTRY TAGS": ";".join(item["industry_tags"]),
                     "FUNDAMENTAL TAGS": ";".join(item["fundamental_tags"]),
                     "QUANTITATIVE SCORE": item["quantitative_score"],
@@ -929,6 +1004,12 @@ class DynamicMarketReport:
                 return text["missing"]
             digits = 1 if key == "pe" else 2
             return f"{value:.{digits}f}{suffix}" if isinstance(value, (int, float)) else f"{value}{suffix}"
+
+        def dividend_yield_text(item):
+            value = item.get("dividend_yield_1y")
+            if value is None:
+                return item.get("dividend_yield_note") or text["missing"]
+            return f"{value * 100:.2f}%"
 
         def industry_context_text(item):
             parts = []
@@ -1022,6 +1103,8 @@ class DynamicMarketReport:
                 (labels["holding_days"], f"{item['holding_days']} days" if item.get("holding_days") is not None else text["missing"]),
                 (labels["current_pnl"], self._format_amount(item.get("pnl"))),
                 (labels["pe"], metric(item, "pe")),
+                (labels["dividend_yield"], dividend_yield_text(item)),
+                (labels["split_status"], item.get("split_status_1y") or text["missing"]),
                 (labels["entry_return"], self._format_pct(item.get("return_since_entry"))),
                 (labels["sortino"], metric(item, "sortino_since_entry")),
                 (labels["max_drawdown"], self._format_pct(item.get("max_drawdown_since_entry"))),
@@ -1063,8 +1146,7 @@ class DynamicMarketReport:
                     f'<tr><td colspan="4" style="padding:4px 12px;"><b>{self._esc(group_label)}：</b>{pills}</td></tr>'
                 )
             evidence_rows = (
-                f'<tr><td colspan="4" style="padding:7px 12px 4px;"><b>{self._esc(labels["industry_context"])}：</b>{self._esc(industry_context_text(item))}</td></tr>'
-                f'<tr><td colspan="4" style="padding:4px 12px 8px;"><b>{self._esc(labels["corporate_actions"])}：</b>{self._esc(item.get("corporate_action_summary") or text["corporate_actions_missing"])}</td></tr>'
+                f'<tr><td colspan="4" style="padding:7px 12px 8px;"><b>{self._esc(labels["industry_context"])}：</b>{self._esc(industry_context_text(item))}</td></tr>'
             )
             card_html.append(
                 f'<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid {style["border"]};border-collapse:collapse;margin:0 0 14px;background:{style["surface"]};">'

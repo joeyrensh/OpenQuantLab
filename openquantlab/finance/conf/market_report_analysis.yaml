@@ -1,6 +1,12 @@
 history:
   trading_days_per_year: 252
 
+corporate_actions:
+  # Number of shares represented by one dividend value in the CSV.
+  dividend_amount_basis_shares:
+    cn: 1
+    us: 1
+
 recommendations:
   require_main_industry_match: true
   require_fundamental_assessment: true
