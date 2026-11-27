@@ -4,40 +4,65 @@ history:
 recommendations:
   require_main_industry_match: true
   require_fundamental_assessment: true
+  allow_quantitative_fallback_on_research_failure: true
 
 llm:
   model: qwen3.7-max
-  # 0 means research every dynamic-list symbol in one consolidated request.
-  max_candidates: 0
+  # Research the highest locally scored candidates together in one request.
+  max_candidates: 12
   max_output_tokens: 6000
   retry_count: 1
   fundamental_weight: 0.20
 
 scoring:
   quantitative_weight: 0.80
-  # The quantitative factor weights sum to 1.0. They are transparent
-  # starting weights, not parameters validated by historical walk-forward tests.
+  # The factor mix uses issuer backtest history plus industry strategy evidence.
+  # Treat these as transparent initial weights, not walk-forward validated alpha.
   factors:
     industry_rank_10d:
-      weight: 0.25
+      weight: 0.20
       direction: lower_is_better
     industry_rank_improvement_5d:
-      weight: 0.25
+      weight: 0.10
+      direction: higher_is_better
+    industry_heatmap_top3_rate:
+      weight: 0.05
+      direction: higher_is_better
+    industry_pnl_change_5d:
+      weight: 0.08
+      direction: higher_is_better
+    industry_pnl_breadth:
+      weight: 0.04
       direction: higher_is_better
     pe:
-      weight: 0.10
+      weight: 0.05
       direction: lower_is_better
     return_since_entry:
-      weight: 0.10
+      weight: 0.05
       direction: higher_is_better
     sortino_since_entry:
-      weight: 0.10
+      weight: 0.06
       direction: higher_is_better
     max_drawdown_since_entry:
-      weight: 0.10
+      weight: 0.07
       direction: higher_is_better
     return_1y:
-      weight: 0.10
+      weight: 0.04
+      direction: higher_is_better
+    win_rate:
+      weight: 0.08
+      direction: higher_is_better
+    total_pnl_ratio:
+      weight: 0.07
+      direction: higher_is_better
+    avg_trans:
+      weight: 0.04
+      direction: lower_is_better
+    avg_days:
+      weight: 0.04
+      direction: higher_is_better
+    strategy_count:
+      weight: 0.03
       direction: higher_is_better
 
 categories:
@@ -45,9 +70,12 @@ categories:
   fundamental_tags:
     - 基本面反转
     - 业绩高增
-    - 景气上行
     - 估值修复
     - 现金流改善
+    - 毛利率改善
+    - 指引上修
+    - 订单/积压增长
+    - 需求复苏
     - 财报催化
     - 政策/行业利好
     - 新品/订单落地
@@ -55,24 +83,58 @@ categories:
     - 减持/解禁压力
     - 监管/舆情风险
     - 业绩承压
+    - 盈利下修
+    - 现金流承压
+    - 高负债/流动性风险
+    - 核心业务收缩
   industry_rules:
-    - id: industry_trend_reversal
-      label: 行业趋势反转
+    - id: industry_rank_leading
+      label: 行业排名前20%
       conditions:
-        - field: industry_rank_10d
+        - field: industry_rank_score
           operator: gte
-          value: 10
+          value: 80
+    - id: industry_rank_improving
+      label: 行业排名明显改善
+      conditions:
         - field: industry_rank_improvement_5d
           operator: gte
           value: 3
-    - id: momentum_confirmation
-      label: 景气上行
+    - id: industry_rank_weakening
+      label: 行业排名明显走弱
       conditions:
-        - field: industry_rank_10d
-          operator: lte
-          value: 10
         - field: industry_rank_improvement_5d
+          operator: lte
+          value: -3
+    - id: industry_strategy_contribution
+      label: 近25日策略行业贡献较频繁
+      conditions:
+        - field: industry_heatmap_top3_rate
           operator: gte
-          value: 1
-  fallback_tag: 暂无明确优势
+          value: 0.20
+    - id: industry_position_pnl_improving
+      label: 近5日行业日净PnL改善
+      conditions:
+        - field: industry_pnl_change_5d
+          operator: gt
+          value: 0
+    - id: industry_position_pnl_fading
+      label: 近5日行业日净PnL走弱
+      conditions:
+        - field: industry_pnl_change_5d
+          operator: lt
+          value: 0
+    - id: industry_position_breadth_positive
+      label: 行业当前持仓累计盈利面较广
+      conditions:
+        - field: industry_pnl_breadth
+          operator: gte
+          value: 0.60
+    - id: industry_position_breadth_negative
+      label: 行业当前持仓累计亏损面较广
+      conditions:
+        - field: industry_pnl_breadth
+          operator: lte
+          value: 0.40
+  fallback_tag: 暂无明确行业或公司催化证据
 

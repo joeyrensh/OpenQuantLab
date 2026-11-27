@@ -81,6 +81,233 @@ class DynamicMarketReport:
             return pd.DataFrame()
         return pd.read_csv(path, low_memory=False)
 
+    def _load_industry_context(self):
+        """Summarize the strategy's daily industry contribution and PnL snapshots."""
+        by_industry = {}
+        summary = {}
+        topn_days = 0
+        as_of = pd.Timestamp(self.trade_date)
+
+        heatmap = self._read_csv(f"{self.base_market}_pd_calendar_heatmap.csv")
+        if {"date", "industry_top3", "s_pnl"}.issubset(heatmap.columns):
+            heatmap["date"] = pd.to_datetime(heatmap["date"], errors="coerce")
+            heatmap["s_pnl"] = pd.to_numeric(heatmap["s_pnl"], errors="coerce")
+            heatmap = heatmap[
+                heatmap["date"].le(as_of)
+            ].dropna(subset=["date", "s_pnl"]).sort_values("date")
+            heatmap = heatmap.drop_duplicates("date", keep="last").tail(25)
+            top3_count, top1_count = {}, {}
+            for value in heatmap["industry_top3"].fillna(""):
+                industries = [item.strip() for item in str(value).split(",") if item.strip()]
+                if industries:
+                    top1_count[industries[0]] = top1_count.get(industries[0], 0) + 1
+                for industry in set(industries[:3]):
+                    top3_count[industry] = top3_count.get(industry, 0) + 1
+
+            days = len(heatmap)
+            summary["heatmap_days"] = days
+            for industry in set(top3_count) | set(top1_count):
+                by_industry.setdefault(industry, {}).update(
+                    {
+                        "industry_heatmap_top3_count": top3_count.get(industry, 0),
+                        "industry_heatmap_top1_count": top1_count.get(industry, 0),
+                        "industry_heatmap_top3_rate": (
+                            top3_count.get(industry, 0) / days if days else None
+                        ),
+                    }
+                )
+            for window in (5, 20):
+                recent = heatmap.tail(window)
+                pnl = recent["s_pnl"]
+                summary[f"strategy_pnl_{window}d"] = float(pnl.sum())
+                summary[f"strategy_positive_days_{window}d"] = int((pnl > 0).sum())
+                summary[f"strategy_days_{window}d"] = len(recent)
+
+        trend = self._read_csv(f"{self.base_market}_pd_topn_industry_profit_trend.csv")
+        if {"buy_date", "industry", "symbol", "pnl"}.issubset(trend.columns):
+            trend["buy_date"] = pd.to_datetime(trend["buy_date"], errors="coerce")
+            trend["pnl"] = pd.to_numeric(trend["pnl"], errors="coerce")
+            trend["industry"] = trend["industry"].astype("string").str.strip()
+            trend["symbol"] = trend["symbol"].astype("string").str.strip()
+            trend = trend[
+                trend["buy_date"].le(as_of)
+                & trend["industry"].notna()
+                & trend["symbol"].notna()
+                & trend["symbol"].ne("")
+                & trend["pnl"].notna()
+            ].copy()
+            if not trend.empty:
+                topn_days = int(trend["buy_date"].nunique())
+                trend["positive"] = trend["pnl"].gt(0).astype(float)
+                snapshots = (
+                    trend.groupby(["buy_date", "industry"], as_index=False)
+                    .agg(
+                        total_pnl=("pnl", "sum"),
+                        positions=("symbol", "nunique"),
+                        pnl_per_symbol=("pnl", "mean"),
+                        positive_breadth=("positive", "mean"),
+                    )
+                    .sort_values(["industry", "buy_date"])
+                )
+                all_dates = sorted(trend["buy_date"].drop_duplicates())
+                all_industries = sorted(trend["industry"].dropna().unique())
+                daily_pnl_by_industry = {industry: [] for industry in all_industries}
+                previous_positions = {}
+                for date_index, date in enumerate(all_dates):
+                    day_rows = trend[trend["buy_date"].eq(date)]
+                    current_positions = {
+                        industry: dict(zip(rows["symbol"], rows["pnl"]))
+                        for industry, rows in day_rows.groupby("industry")
+                    }
+                    for industry in all_industries:
+                        current = current_positions.get(industry, {})
+                        previous = previous_positions.get(industry, {})
+                        if date_index == 0:
+                            # The first snapshot may contain PnL accumulated before
+                            # this file's window; it is a baseline, not a daily gain.
+                            daily_pnl = 0.0
+                        else:
+                            daily_pnl = sum(
+                                pnl - previous[symbol]
+                                if symbol in previous
+                                else pnl
+                                for symbol, pnl in current.items()
+                            )
+                        daily_pnl_by_industry[industry].append(float(daily_pnl))
+                    # A missing symbol on the next date represents an exit. Its
+                    # final day's PnL delta is already included above.
+                    previous_positions = current_positions
+
+                latest_date = trend["buy_date"].max()
+                for industry, rows in snapshots.groupby("industry"):
+                    daily_pnl = pd.Series(daily_pnl_by_industry.get(industry, []))
+                    recent = daily_pnl.tail(5)
+                    previous = daily_pnl.iloc[max(0, len(daily_pnl) - 10) : max(0, len(daily_pnl) - 5)]
+                    latest = rows.iloc[-1]
+                    current_snapshot = latest["buy_date"] == latest_date
+                    change = (
+                        float(recent.mean() - previous.mean())
+                        if len(previous) >= 3 and len(recent) >= 3
+                        else None
+                    )
+                    by_industry.setdefault(str(industry), {}).update(
+                        {
+                            "industry_pnl_change_5d": change,
+                            "industry_pnl_per_symbol": float(latest["pnl_per_symbol"]),
+                            "industry_pnl_total": float(latest["total_pnl"]),
+                            "industry_pnl_breadth": (
+                                float(latest["positive_breadth"])
+                                if current_snapshot
+                                else None
+                            ),
+                            "industry_position_count": int(latest["positions"]),
+                            "industry_snapshot_date": latest["buy_date"].strftime("%Y-%m-%d"),
+                            "industry_snapshot_days": len(rows),
+                            "industry_snapshot_is_current": bool(current_snapshot),
+                        }
+                    )
+
+                latest_rows = trend[trend["buy_date"].eq(latest_date)]
+                summary["topn_latest_date"] = latest_date.strftime("%Y-%m-%d")
+                summary["topn_latest_pnl"] = float(latest_rows["pnl"].sum())
+                summary["topn_latest_positions"] = int(latest_rows["symbol"].nunique())
+                summary["topn_latest_positive_breadth"] = float(
+                    latest_rows["positive"].mean()
+                )
+
+        self._progress(
+            f"行业上下文读取完成：日历样本 {summary.get('heatmap_days', 0)} 天，"
+            f"TOP10 PnL 快照覆盖 {topn_days} 天。"
+        )
+        return by_industry, summary
+
+    def _load_corporate_actions(self, symbols):
+        """Load the latest as-of version of the market's two-year action history."""
+        market_dir = FINANCE_ROOT / f"{self.base_market}stockinfo"
+        as_of = pd.Timestamp(self.trade_date)
+        versioned = []
+        for path in market_dir.glob(f"{self.base_market}_stock_actions_history_*.csv"):
+            match = re.search(r"_(\d{8})$", path.stem)
+            if match and match.group(1) <= self.ticker_trade_date:
+                versioned.append((match.group(1), path))
+        source_path = max(versioned, default=(None, None), key=lambda item: item[0])[1]
+        if source_path is None and not list(
+            market_dir.glob(f"{self.base_market}_stock_actions_history_*.csv")
+        ):
+            fallback = market_dir / f"{self.base_market}_stock_actions_history.csv"
+            source_path = fallback if fallback.exists() else None
+        if source_path is None:
+            self._progress("没有找到报告日期可用的公司行动历史文件。")
+            return {}, None
+
+        try:
+            actions = pd.read_csv(
+                source_path,
+                usecols=["symbol", "date", "dividend", "split_ratio"],
+                dtype={"symbol": str, "date": str},
+            )
+        except Exception as exc:
+            self._progress(f"公司行动历史读取失败：{exc}")
+            return {}, None
+        actions["date"] = pd.to_datetime(actions["date"], errors="coerce")
+        actions["dividend"] = pd.to_numeric(actions["dividend"], errors="coerce").fillna(0)
+        actions["split_ratio"] = (
+            pd.to_numeric(actions["split_ratio"], errors="coerce")
+            .fillna(1)
+            .replace(0, 1)
+        )
+        actions["symbol"] = actions["symbol"].astype("string").str.strip()
+        source_rows = actions[
+            actions["date"].notna() & actions["date"].le(as_of)
+        ]
+        if source_rows.empty:
+            self._progress(f"公司行动文件无报告日期之前的数据：{source_path.name}")
+            return {}, source_path.name
+
+        cutoff = as_of - pd.DateOffset(years=2)
+        coverage_start = max(cutoff, source_rows["date"].min())
+        two_year_coverage = source_rows["date"].min() <= cutoff
+        events = source_rows[
+            source_rows["date"].ge(cutoff)
+            & (source_rows["dividend"].gt(0) | (source_rows["split_ratio"].gt(0) & source_rows["split_ratio"].ne(1)))
+            & source_rows["symbol"].isin(symbols)
+        ]
+        currency = "¥" if self.base_market == "cn" else "$"
+        summaries = {}
+        for symbol in symbols:
+            rows = events[events["symbol"].eq(symbol)].sort_values("date")
+            if rows.empty:
+                if two_year_coverage:
+                    detail = "近2年未见分红或拆并股记录"
+                else:
+                    detail = f"未匹配到公司行动记录（文件覆盖自 {coverage_start:%Y-%m-%d}）"
+            else:
+                parts = []
+                dividends = rows[rows["dividend"].gt(0)]
+                if not dividends.empty:
+                    parts.append(
+                        f"{len(dividends)}次现金分红，累计{currency}{dividends['dividend'].sum():.3f}/股"
+                    )
+                splits = rows[rows["split_ratio"].ne(1)]
+                if not splits.empty:
+                    latest_split = splits.iloc[-1]
+                    ratio = float(latest_split["split_ratio"])
+                    split_text = (
+                        f"送转/拆股 1变{ratio:g}"
+                        if ratio > 1
+                        else f"缩股 {1 / ratio:g}并1"
+                    )
+                    parts.append(f"{len(splits)}次拆并股，最近一次 {split_text}")
+                if not two_year_coverage:
+                    parts.insert(0, f"数据覆盖自 {coverage_start:%Y-%m-%d}")
+                parts.append(f"最近记录 {rows.iloc[-1]['date']:%Y-%m-%d}")
+                detail = "；".join(parts)
+            summaries[symbol] = detail
+        self._progress(
+            f"公司行动信息读取完成：版本 {source_path.name}，覆盖标的 {len(summaries)} 只。"
+        )
+        return summaries, source_path.name
+
     def _history_by_symbol(self, symbols):
         """Use TickerInfo's forward-adjusted daily feed and exclude its mock bar."""
         history = {}
@@ -146,13 +373,14 @@ class DynamicMarketReport:
             self._progress("动态持仓明细为空或缺少 SYMBOL 列，没有候选标的。")
             return [], 0, []
 
-        industry_by_symbol = {}
+        industry_context, market_context = self._load_industry_context()
         category_change_by_industry = {}
         if not category.empty and {"industry_new", "index_diff"}.issubset(category.columns):
             for _, row in category.dropna(subset=["industry_new"]).iterrows():
                 category_change_by_industry[str(row["industry_new"]).strip()] = self._number(
                     row.get("index_diff")
                 )
+        industry_by_symbol, industry_by_name, industry_pe_values_by_name = {}, {}, {}
         if not main.empty and {"SYMBOL", "IND"}.issubset(main.columns):
             for _, row in main.dropna(subset=["SYMBOL"]).iterrows():
                 industry = self._parse_industry(row["IND"])
@@ -160,32 +388,49 @@ class DynamicMarketReport:
                     industry["industry_rank_improvement_5d"] = category_change_by_industry.get(
                         industry["industry"]
                     )
-                industry_by_symbol[str(row["SYMBOL"]).strip()] = industry
-
-        industry_count = len(category) if not category.empty else 0
-        category_trend = []
-        if not category.empty and "index_diff" in category:
-            category_trend = [
-                self._number(value)
-                for value in pd.to_numeric(category["index_diff"], errors="coerce")
-            ]
-            category_trend = [value for value in category_trend if value is not None]
+                symbol = str(row["SYMBOL"]).strip()
+                industry_by_symbol[symbol] = industry
+                name = industry.get("industry")
+                if name:
+                    peer_pe = self._number(row.get("PE"))
+                    if peer_pe is not None and peer_pe > 0:
+                        industry_pe_values_by_name.setdefault(name, []).append(peer_pe)
+                    previous = industry_by_name.get(name, {})
+                    industry_by_name[name] = {
+                        key: value if value is not None else previous.get(key)
+                        for key, value in industry.items()
+                    }
 
         dynamic = dynamic.dropna(subset=["SYMBOL"]).drop_duplicates(
             subset=["SYMBOL"], keep="last"
         )
         symbols = [str(symbol).strip() for symbol in dynamic["SYMBOL"]]
+        action_by_symbol, action_source = self._load_corporate_actions(set(symbols))
+        market_context["actions_source"] = action_source
         history_by_symbol = self._history_by_symbol(set(symbols))
         candidates = []
         strategy_column = self.analysis.get("categories", {}).get(
             "technical_source", "dynamic_stockdetail.STRATEGY"
         ).split(".")[-1]
+        end_date = pd.Timestamp(self.trade_date)
         for _, row in dynamic.iterrows():
             symbol = str(row["SYMBOL"]).strip()
             main_industry = industry_by_symbol.get(symbol, {})
+            industry_factors = industry_context.get(main_industry.get("industry"), {})
             history = history_by_symbol.get(symbol, {})
             pe = self._number(row.get("PE"))
             strategy = row.get(strategy_column)
+            open_timestamp = pd.to_datetime(row.get("OPEN DATE"), errors="coerce")
+            open_date = (
+                open_timestamp.strftime("%Y-%m-%d")
+                if not pd.isna(open_timestamp)
+                else None
+            )
+            holding_days = (
+                max(0, int((end_date.normalize() - open_timestamp.normalize()).days))
+                if not pd.isna(open_timestamp)
+                else None
+            )
             candidate = {
                 "symbol": symbol,
                 "name": str(row.get("NAME", "") or ""),
@@ -195,9 +440,17 @@ class DynamicMarketReport:
                     "industry_rank_improvement_5d"
                 ),
                 "pe": pe if pe is not None and pe > 0 else None,
+                "open_date": open_date,
+                "holding_days": holding_days,
+                "pnl": self._number(row.get("PNL")),
                 "return_since_entry": self._number(row.get("PNL RATIO")),
                 "sortino_since_entry": self._number(row.get("SORTINO RATIO")),
                 "max_drawdown_since_entry": self._number(row.get("MAX DD")),
+                "win_rate": self._number(row.get("WIN RATE")),
+                "total_pnl_ratio": self._number(row.get("TOTAL PNL RATIO")),
+                "avg_trans": self._number(row.get("AVG TRANS")),
+                "avg_days": self._number(row.get("AVG DAYS")),
+                "strategy_count": self._number(row.get("STRATEGY CNT")),
                 "return_1y": history.get("return_1y"),
                 "return_available": history.get("return_available"),
                 "max_drawdown_1y": history.get("max_drawdown_1y"),
@@ -210,37 +463,106 @@ class DynamicMarketReport:
                     main_industry.get("industry_rank_10d") is not None
                     and main_industry.get("industry_rank_improvement_5d") is not None
                 ),
+                "industry_heatmap_top3_count": industry_factors.get(
+                    "industry_heatmap_top3_count"
+                ),
+                "industry_heatmap_top1_count": industry_factors.get(
+                    "industry_heatmap_top1_count"
+                ),
+                "industry_heatmap_top3_rate": industry_factors.get(
+                    "industry_heatmap_top3_rate"
+                ),
+                "industry_pnl_change_5d": industry_factors.get(
+                    "industry_pnl_change_5d"
+                ),
+                "industry_pnl_per_symbol": industry_factors.get(
+                    "industry_pnl_per_symbol"
+                ),
+                "industry_pnl_total": industry_factors.get("industry_pnl_total"),
+                "industry_pnl_breadth": industry_factors.get(
+                    "industry_pnl_breadth"
+                ),
+                "industry_position_count": industry_factors.get(
+                    "industry_position_count"
+                ),
+                "industry_snapshot_date": industry_factors.get(
+                    "industry_snapshot_date"
+                ),
+                "industry_snapshot_is_current": industry_factors.get(
+                    "industry_snapshot_is_current"
+                ),
+                "corporate_action_summary": action_by_symbol.get(
+                    symbol, "公司行动数据未核实"
+                ),
                 "technical_tag": "" if strategy is None or pd.isna(strategy) else str(strategy).strip(),
             }
             candidates.append(candidate)
 
-        if not industry_count:
-            ranks = [item["industry_rank_10d"] for item in candidates if item["industry_rank_10d"] is not None]
-            industry_count = max(ranks) + 1 if ranks else 1
+        industry_count = len(industry_by_name)
+        industry_rank_values = [
+            item["industry_rank_10d"]
+            for item in industry_by_name.values()
+            if item.get("industry_rank_10d") is not None
+        ]
+        industry_trend_values = [
+            item["industry_rank_improvement_5d"]
+            for item in industry_by_name.values()
+            if item.get("industry_rank_improvement_5d") is not None
+        ]
         for candidate in candidates:
-            rank = candidate["industry_rank_10d"]
-            candidate["score_industry_rank_10d"] = (
-                max(0.0, min(100.0, 100 * (industry_count - 1 - rank) / (industry_count - 1)))
-                if rank is not None and industry_count > 1
-                else None
+            candidate["score_industry_rank_10d"] = self._percentile_score(
+                candidate["industry_rank_10d"], industry_rank_values,
+                higher_is_better=False,
             )
+            candidate["industry_rank_score"] = candidate["score_industry_rank_10d"]
             candidate["score_industry_rank_improvement_5d"] = self._percentile_score(
-                candidate["industry_rank_improvement_5d"], category_trend
+                candidate["industry_rank_improvement_5d"], industry_trend_values
             )
+
+        industry_level_factors = {
+            "industry_heatmap_top3_rate",
+            "industry_pnl_change_5d",
+            "industry_pnl_breadth",
+        }
+        for factor in industry_level_factors:
+            distribution = [
+                values.get(factor)
+                for values in industry_context.values()
+                if values.get(factor) is not None
+            ]
+            for candidate in candidates:
+                candidate[f"score_{factor}"] = self._percentile_score(
+                    candidate.get(factor), distribution
+                )
 
         factors = self.analysis["scoring"]["factors"]
         for factor, settings in factors.items():
             if factor in (
                 "industry_rank_10d",
                 "industry_rank_improvement_5d",
+                *industry_level_factors,
             ):
                 continue
-            values = [candidate.get(factor) for candidate in candidates]
             higher_is_better = settings["direction"] == "higher_is_better"
-            for candidate in candidates:
-                candidate[f"score_{factor}"] = self._percentile_score(
-                    candidate.get(factor), values, higher_is_better
-                )
+            if factor == "pe":
+                # PE is only ranked against same-industry peers, never across sectors.
+                for candidate in candidates:
+                    peers = industry_pe_values_by_name.get(
+                        candidate.get("industry"), []
+                    )
+                    candidate[f"score_{factor}"] = (
+                        self._percentile_score(
+                            candidate.get(factor), peers, higher_is_better
+                        )
+                        if len(peers) >= 3
+                        else None
+                    )
+            else:
+                values = [candidate.get(factor) for candidate in candidates]
+                for candidate in candidates:
+                    candidate[f"score_{factor}"] = self._percentile_score(
+                        candidate.get(factor), values, higher_is_better
+                    )
 
         factor_weights = {
             factor: settings["weight"] for factor, settings in factors.items()
@@ -261,12 +583,18 @@ class DynamicMarketReport:
         self._progress(
             f"候选数据及本地量化评分完成：{len(candidates)} 只标的，覆盖 {industry_count} 个行业，耗时 {time.perf_counter() - started:.1f}s。"
         )
-        return candidates, industry_count, category_trend
+        return candidates, industry_count, market_context
 
     def _research_candidates(self, candidates):
         settings = self.analysis.get("llm", {})
         max_candidates = int(settings.get("max_candidates", 20))
-        shortlist = sorted(candidates, key=lambda item: item["symbol"])
+        shortlist = sorted(
+            candidates,
+            key=lambda item: (
+                -float(item.get("quantitative_score", 0.0)),
+                item["symbol"],
+            ),
+        )
         if max_candidates > 0:
             shortlist = shortlist[:max_candidates]
         if not shortlist:
@@ -274,7 +602,7 @@ class DynamicMarketReport:
             return {}
 
         self._progress(
-            f"准备调用 LLM 进行联网财报/新闻检索和摘要：{len(shortlist)} 只标的，模型 {settings.get('model', 'qwen3.7-max')}。"
+            f"按本地量化评分选取前 {len(shortlist)} 只标的，准备一次性联网研判；模型 {settings.get('model', 'qwen3.7-max')}。"
         )
 
         try:
@@ -485,9 +813,14 @@ class DynamicMarketReport:
                 if matches:
                     industry_tags.append(rule.get("label", rule.get("id", "")))
             candidate["industry_tags"] = industry_tags
-            candidate["category"] = " · ".join(
-                industry_tags + candidate["fundamental_tags"]
-            ) or categories.get("fallback_tag", "暂无明确优势")
+            category_parts = []
+            if industry_tags:
+                category_parts.append("行业=" + "、".join(industry_tags))
+            if candidate["fundamental_tags"]:
+                category_parts.append("个股基本面=" + "、".join(candidate["fundamental_tags"]))
+            candidate["category"] = "；".join(category_parts) or categories.get(
+                "fallback_tag", "暂无明确优势"
+            )
             candidate["fundamental_score"] = fundamental_score
             for field in ("latest_financials", "outlook", "catalyst", "confidence"):
                 candidate[field] = str(details.get(field, "") or "")
@@ -499,21 +832,40 @@ class DynamicMarketReport:
     def _save_scores(self, candidates):
         rows = []
         for item in candidates:
-            rows.append(
-                {
+            row = {
                     "REPORT DATE": self.trade_date,
                     "SYMBOL": item["symbol"],
                     "NAME": item["name"],
                     "INDUSTRY": item["industry"],
                     "INDUSTRY RANK 10D": item["industry_rank_10d"],
                     "INDUSTRY RANK IMPROVEMENT 5D": item["industry_rank_improvement_5d"],
+                    "INDUSTRY RANK SCORE": item["industry_rank_score"],
+                    "INDUSTRY HEATMAP TOP3 DAYS": item["industry_heatmap_top3_count"],
+                    "INDUSTRY HEATMAP TOP1 DAYS": item["industry_heatmap_top1_count"],
+                    "INDUSTRY HEATMAP TOP3 RATE": item["industry_heatmap_top3_rate"],
+                    "INDUSTRY DAILY PNL AVG CHANGE 5D": item["industry_pnl_change_5d"],
+                    "INDUSTRY PNL TOTAL SNAPSHOT": item["industry_pnl_total"],
+                    "INDUSTRY PNL PER SYMBOL SNAPSHOT": item["industry_pnl_per_symbol"],
+                    "INDUSTRY PNL BREADTH": item["industry_pnl_breadth"],
+                    "INDUSTRY POSITION COUNT": item["industry_position_count"],
+                    "INDUSTRY SNAPSHOT DATE": item["industry_snapshot_date"],
+                    "INDUSTRY SNAPSHOT IS CURRENT": item.get("industry_snapshot_is_current"),
+                    "OPEN DATE": item["open_date"],
+                    "HOLDING DAYS": item["holding_days"],
+                    "CURRENT PNL": item["pnl"],
                     "PE": item["pe"],
                     "RETURN SINCE ENTRY": item["return_since_entry"],
                     "SORTINO SINCE ENTRY": item["sortino_since_entry"],
                     "MAX DD SINCE ENTRY": item["max_drawdown_since_entry"],
+                    "STRATEGY WIN RATE 180D": item["win_rate"],
+                    "STRATEGY TOTAL PNL RATIO 180D": item["total_pnl_ratio"],
+                    "STRATEGY AVG TRANSACTIONS 180D": item["avg_trans"],
+                    "STRATEGY AVG HOLD DAYS 180D": item["avg_days"],
+                    "STRATEGY COUNT": item["strategy_count"],
                     "RETURN 1Y": item["return_1y"],
                     "MAX DD 1Y": item["max_drawdown_1y"],
                     "STRATEGY TAG": item["technical_tag"],
+                    "CORPORATE ACTIONS 2Y": item["corporate_action_summary"],
                     "INDUSTRY TAGS": ";".join(item["industry_tags"]),
                     "FUNDAMENTAL TAGS": ";".join(item["fundamental_tags"]),
                     "QUANTITATIVE SCORE": item["quantitative_score"],
@@ -521,7 +873,9 @@ class DynamicMarketReport:
                     "SCORE": item["score"],
                     "CATEGORY": item["category"],
                 }
-            )
+            for factor in self.analysis["scoring"]["factors"]:
+                row[f"SCORE {factor.upper()}"] = item.get(f"score_{factor}")
+            rows.append(row)
         output = FINANCE_ROOT / "data" / f"{self.market}_recommendation_scores.csv"
         pd.DataFrame(rows).to_csv(output, index=False)
 
@@ -533,9 +887,17 @@ class DynamicMarketReport:
         value = self._number(value)
         return self.format["email"]["text"]["missing"] if value is None else f"{value * 100:+.{digits}f}%"
 
+    def _format_amount(self, value):
+        value = self._number(value)
+        if value is None:
+            return self.format["email"]["text"]["missing"]
+        currency = "¥" if self.base_market == "cn" else "$"
+        sign = "+" if value >= 0 else "−"
+        return f"{sign}{currency}{abs(value):,.2f}"
+
     def _render(
         self, candidates, dynamic_count, research_count, industry_count,
-        research_error=None, research_retries=0,
+        research_error=None, research_retries=0, market_context=None,
     ):
         email = self.format["email"]
         labels = email["labels"]
@@ -547,7 +909,16 @@ class DynamicMarketReport:
         if recommendation_rules.get("require_main_industry_match", True):
             eligible = [item for item in eligible if item["industry_factor_complete"]]
         if recommendation_rules.get("require_fundamental_assessment", True):
-            eligible = [item for item in eligible if item.get("fundamental_score") is not None]
+            researched = [item for item in eligible if item.get("fundamental_score") is not None]
+            if researched:
+                eligible = researched
+            elif not (
+                research_error
+                and recommendation_rules.get(
+                    "allow_quantitative_fallback_on_research_failure", True
+                )
+            ):
+                eligible = []
         picks = eligible[:limit]
         market_name = "A股" if self.base_market == "cn" else "美股"
         subject = email["subject"].format(market_name=market_name, trade_date=self.trade_date)
@@ -558,6 +929,46 @@ class DynamicMarketReport:
                 return text["missing"]
             digits = 1 if key == "pe" else 2
             return f"{value:.{digits}f}{suffix}" if isinstance(value, (int, float)) else f"{value}{suffix}"
+
+        def industry_context_text(item):
+            parts = []
+            days = (market_context or {}).get("heatmap_days", 0)
+            top3 = item.get("industry_heatmap_top3_count")
+            if days and top3 is not None:
+                top1 = item.get("industry_heatmap_top1_count") or 0
+                parts.append(f"近{days}日策略行业日贡献Top3出现{top3}天、Top1出现{top1}天")
+            position_count = item.get("industry_position_count")
+            if position_count:
+                parts.append(
+                    f"TOP10策略持仓快照截至{item.get('industry_snapshot_date')}："
+                    f"当前持仓累计PnL {self._format_amount(item.get('industry_pnl_total'))}，"
+                    f"{position_count}只，单股累计PnL均值 {self._format_amount(item.get('industry_pnl_per_symbol'))}，"
+                    f"持仓累计盈利占比 {self._format_pct(item.get('industry_pnl_breadth'))}"
+                )
+                change = item.get("industry_pnl_change_5d")
+                if change is not None:
+                    parts.append(
+                        f"近5日行业日净PnL均值较前5日变化 {self._format_amount(change)}"
+                    )
+            return "；".join(parts) or text["no_industry_context"]
+
+        def strategy_context_text():
+            context = market_context or {}
+            parts = []
+            for window in (5, 20):
+                days = context.get(f"strategy_days_{window}d", 0)
+                if days:
+                    parts.append(
+                        f"近{window}日策略净PnL {self._format_amount(context.get(f'strategy_pnl_{window}d'))}，"
+                        f"盈利日 {context.get(f'strategy_positive_days_{window}d', 0)}/{days}"
+                    )
+            if context.get("topn_latest_date"):
+                parts.append(
+                    f"TOP10行业持仓PnL快照截至 {context['topn_latest_date']}："
+                    f"{self._format_amount(context.get('topn_latest_pnl'))}，"
+                    f"持仓累计盈利占比 {self._format_pct(context.get('topn_latest_positive_breadth'))}"
+                )
+            return "；".join(parts)
 
         def source_links(sources):
             links = []
@@ -607,10 +1018,18 @@ class DynamicMarketReport:
                 (labels["industry"], item.get("industry") or text["missing"]),
                 (labels["industry_rank"], f"#{item['industry_rank_10d'] + 1}" if item.get("industry_rank_10d") is not None else text["missing"]),
                 (labels["industry_change"], industry_change),
+                (labels["open_date"], item.get("open_date") or text["missing"]),
+                (labels["holding_days"], f"{item['holding_days']} days" if item.get("holding_days") is not None else text["missing"]),
+                (labels["current_pnl"], self._format_amount(item.get("pnl"))),
                 (labels["pe"], metric(item, "pe")),
                 (labels["entry_return"], self._format_pct(item.get("return_since_entry"))),
                 (labels["sortino"], metric(item, "sortino_since_entry")),
                 (labels["max_drawdown"], self._format_pct(item.get("max_drawdown_since_entry"))),
+                (labels["strategy_win_rate"], self._format_pct(item.get("win_rate"))),
+                (labels["strategy_total_return"], self._format_pct(item.get("total_pnl_ratio"))),
+                (labels["avg_trans"], metric(item, "avg_trans")),
+                (labels["avg_days"], metric(item, "avg_days", " days")),
+                (labels["strategy_count"], metric(item, "strategy_count")),
                 (labels["return_1y"], return_1y),
                 (drawdown_label, drawdown_1y),
             ]
@@ -643,6 +1062,10 @@ class DynamicMarketReport:
                 tag_rows.append(
                     f'<tr><td colspan="4" style="padding:4px 12px;"><b>{self._esc(group_label)}：</b>{pills}</td></tr>'
                 )
+            evidence_rows = (
+                f'<tr><td colspan="4" style="padding:7px 12px 4px;"><b>{self._esc(labels["industry_context"])}：</b>{self._esc(industry_context_text(item))}</td></tr>'
+                f'<tr><td colspan="4" style="padding:4px 12px 8px;"><b>{self._esc(labels["corporate_actions"])}：</b>{self._esc(item.get("corporate_action_summary") or text["corporate_actions_missing"])}</td></tr>'
+            )
             card_html.append(
                 f'<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border:1px solid {style["border"]};border-collapse:collapse;margin:0 0 14px;background:{style["surface"]};">'
                 f'<tr><td colspan="4" style="padding:10px 14px;background:{style["accent"]};color:#ffffff;">'
@@ -652,6 +1075,7 @@ class DynamicMarketReport:
                 f'<td align="right" style="font-size:16px;font-weight:bold;white-space:nowrap;">{self._esc(score_text)}</td>'
                 '</tr></table></td></tr>'
                 f'{rows_html}'
+                + evidence_rows
                 + "".join(tag_rows)
                 + f'<tr><td colspan="4" style="padding:10px 12px 4px;"><b>{self._esc(labels["latest_financials"])}：</b>{self._esc(item.get("latest_financials") or text["no_research"])}</td></tr>'
                 + f'<tr><td colspan="4" style="padding:4px 12px;"><b>{self._esc(labels["catalyst"])}：</b>{self._esc(item.get("catalyst") or text["missing"])}</td></tr>'
@@ -681,6 +1105,12 @@ class DynamicMarketReport:
                 'background:#fff7e8;color:#7a4b12;">'
                 f'{self._esc(failure_message)}</div>'
             )
+        strategy_context = strategy_context_text()
+        strategy_context_html = (
+            f'<div style="margin:10px 0;padding:9px 12px;border-left:3px solid {style["accent"]};background:{style["tag_background"]};">'
+            f'<b>{self._esc(labels["strategy_context"])}：</b>{self._esc(strategy_context)}</div>'
+            if strategy_context else ""
+        )
         body = (
             f'<div style="max-width:900px;margin:0 auto;padding:16px;background:{style["surface"]};color:{style["text"]};font-family:Arial,\'Microsoft YaHei\',sans-serif;line-height:1.55;">'
             f'<div style="padding:16px 18px;background:{style["accent"]};color:#ffffff;">'
@@ -688,6 +1118,7 @@ class DynamicMarketReport:
             f'<div style="font-size:13px;margin-top:4px;">{self._esc(market_name)} · {self._esc(self.trade_date)}</div>'
             f'<div style="font-size:12px;margin-top:6px;">{self._esc(subtitle)}</div></div>'
             + failure_notice
+            + strategy_context_html
             + f'<div style="padding:12px 2px 4px;">{self._esc(overall)}</div>'
             + f'<h3 style="margin:10px 0 8px;">{self._esc(email["recommendation_heading"])}</h3>'
             + "".join(card_html)
@@ -703,7 +1134,7 @@ class DynamicMarketReport:
         started = time.perf_counter()
         self._progress(f"开始生成 {self.market} 研判报告，交易日 {self.trade_date}。")
         stage_started = time.perf_counter()
-        candidates, industry_count, _ = self._load_candidates()
+        candidates, industry_count, market_context = self._load_candidates()
         self._progress(
             f"候选准备阶段结束，耗时 {time.perf_counter() - stage_started:.1f}s。"
         )
@@ -735,6 +1166,7 @@ class DynamicMarketReport:
             industry_count,
             research_error=research.get("error"),
             research_retries=research.get("retries", 0),
+            market_context=market_context,
         )
         self._progress("报告 HTML 已生成，正在发送邮件。")
         stage_started = time.perf_counter()
