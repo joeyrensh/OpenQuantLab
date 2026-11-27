@@ -748,6 +748,7 @@ legend {
 .chart-container .js-plotly-plot .plotly text{
   font-size: clamp(1.05rem, 2.5cqw, 1.5rem) !important;
   font-weight: 300 !important;
+  font-family: var(--font-family) !important;
 }
 
 /* Annual Return HTML labels use the same container-based responsive scaling. */

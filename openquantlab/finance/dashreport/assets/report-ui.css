@@ -273,13 +273,13 @@
 }
 
 #page-content .annual-return-chip-list {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 7px;
+  display: flex;
+  gap: 2px;
   min-width: 0;
 }
 
 #page-content .annual-return-chip {
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -357,10 +357,6 @@
 }
 
 @media (max-width: 550px) {
-  #page-content .annual-return-chip-list {
-    grid-template-columns: repeat(4, minmax(max-content, 1fr));
-    gap: 3px;
-  }
 
   #page-content .annual-return-chip {
     gap: 2px;
@@ -690,7 +686,7 @@
 
   #page-content .kpi-card {
     padding: 6px;
-    row-gap: 15px;
+    row-gap: 10px;
   }
 
   #page-content .kpi-card:last-child {
