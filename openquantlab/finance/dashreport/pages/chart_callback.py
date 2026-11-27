@@ -193,7 +193,7 @@ class ChartCallback:
             "Ann.R": ("AnnR", "Annual Return"),
             "Cum.R": ("CumR", "Cumulative Return"),
             "Max.DD": ("MDD", "Max Drawdown"),
-            "Daily 5%": ("P5", "Daily Risk"),
+            "Daily 5%": ("P5", "Daily Return P5"),
         }
         latest_year = str(year_groups[0].get("year", ""))
         rows = []
