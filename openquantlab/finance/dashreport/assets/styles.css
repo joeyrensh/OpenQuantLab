@@ -775,15 +775,6 @@ legend {
   font-size: calc(clamp(1.05rem, 2.5cqw, 1.5rem) - 0.1rem) !important;
 }
 
-.chart-container .plotly .table .column-block[id^="cells"] .column-cell:first-of-type text {
-  font-size: clamp(1.3rem, 2.5cqw, 1.9rem) !important;
-  font-weight: 900 !important;
-}
-
-.chart-container .plotly .table .column-block[id^="cells"] .column-cell text {
-  font-family: var(--font-family-number) !important;
-}
-
 #us-annual-return-light,
 #us-annual-return-dark,
 #cn-annual-return-light,

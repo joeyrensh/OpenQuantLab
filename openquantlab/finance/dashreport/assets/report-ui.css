@@ -296,8 +296,7 @@
 #page-content .annual-return-metric-label {
   overflow: hidden;
   color: var(--text-color);
-  font-weight: 400;
-  opacity: 0.78;
+  font-weight: 300;
   text-overflow: ellipsis;
 }
 
@@ -328,7 +327,33 @@
 }
 
 #page-content .annual-return-chip--neutral {
+  border-top: 1px solid var(--text-color);
   color: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  #page-content .annual-return-chip--positive {
+    border-top-color: color-mix(
+      in srgb,
+      var(--positive-int-bg-color) 50%,
+      var(--background-color)
+    );
+  }
+
+  #page-content .annual-return-chip--negative {
+    border-top-color: color-mix(
+      in srgb,
+      var(--negative-int-bg-color) 50%,
+      var(--background-color)
+    );
+  }
+  #page-content .annual-return-chip--neutral {
+    border-top-color: color-mix(
+      in srgb,
+      var(--text-color) 50%,
+      var(--background-color)
+    );
+  }    
 }
 
 @media (max-width: 550px) {
