@@ -237,9 +237,12 @@
 }
 
 #page-content .annual-return-layout {
+    grid-template-rows: minmax(0px, 1fr) auto;
+    gap: 2px;
+}
+
+#page-content .annual-return-layout:has(.dash-graph) {
   height: calc(100cqw / 2.2);
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 2px;
 }
 
 #page-content .annual-return-layout > .chart-container {
@@ -371,7 +374,7 @@
 
 @media (max-width: 550px) {
 
-  #page-content .annual-return-layout {
+  #page-content .annual-return-layout:has(.dash-graph) {
     height: calc(100cqw / 1.6);
   }
 
