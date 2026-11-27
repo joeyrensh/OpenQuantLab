@@ -6,7 +6,6 @@
 *.gz
 *.pkl
 .vscode
-*.md
 *.txt
 *.bk
 *.swp

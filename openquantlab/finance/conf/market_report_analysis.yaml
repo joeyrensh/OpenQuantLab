@@ -1,0 +1,78 @@
+history:
+  trading_days_per_year: 252
+
+recommendations:
+  require_main_industry_match: true
+  require_fundamental_assessment: true
+
+llm:
+  model: qwen3.7-max
+  # 0 means research every dynamic-list symbol in one consolidated request.
+  max_candidates: 0
+  max_output_tokens: 6000
+  retry_count: 1
+  fundamental_weight: 0.20
+
+scoring:
+  quantitative_weight: 0.80
+  # The quantitative factor weights sum to 1.0. They are transparent
+  # starting weights, not parameters validated by historical walk-forward tests.
+  factors:
+    industry_rank_10d:
+      weight: 0.25
+      direction: lower_is_better
+    industry_rank_improvement_5d:
+      weight: 0.25
+      direction: higher_is_better
+    pe:
+      weight: 0.10
+      direction: lower_is_better
+    return_since_entry:
+      weight: 0.10
+      direction: higher_is_better
+    sortino_since_entry:
+      weight: 0.10
+      direction: higher_is_better
+    max_drawdown_since_entry:
+      weight: 0.10
+      direction: higher_is_better
+    return_1y:
+      weight: 0.10
+      direction: higher_is_better
+
+categories:
+  technical_source: dynamic_stockdetail.STRATEGY
+  fundamental_tags:
+    - 基本面反转
+    - 业绩高增
+    - 景气上行
+    - 估值修复
+    - 现金流改善
+    - 财报催化
+    - 政策/行业利好
+    - 新品/订单落地
+    - 并购重组
+    - 减持/解禁压力
+    - 监管/舆情风险
+    - 业绩承压
+  industry_rules:
+    - id: industry_trend_reversal
+      label: 行业趋势反转
+      conditions:
+        - field: industry_rank_10d
+          operator: gte
+          value: 10
+        - field: industry_rank_improvement_5d
+          operator: gte
+          value: 3
+    - id: momentum_confirmation
+      label: 景气上行
+      conditions:
+        - field: industry_rank_10d
+          operator: lte
+          value: 10
+        - field: industry_rank_improvement_5d
+          operator: gte
+          value: 1
+  fallback_tag: 暂无明确优势
+
