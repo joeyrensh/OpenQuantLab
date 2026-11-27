@@ -301,17 +301,17 @@ class PageLayout:
                             },
                             className="annual-return-metrics",
                             style={
-                                "display": "block" if chart_type == "annual_return" else "none"
+                                "display": "grid" if chart_type == "annual_return" else "none"
                             },
                         ),
                     ],
                     id={"type": "collapsible", "page": self.prefix, "index": index},
+                    className=(
+                        "annual-return-layout" if chart_type == "annual_return" else None
+                    ),
                     style={
-                        "display": "block",
+                        "display": "grid" if chart_type == "annual_return" else "block",
                         "width": "100%",
-                        "position": (
-                            "relative" if chart_type == "annual_return" else "static"
-                        ),
                     },
                 ),
             ],

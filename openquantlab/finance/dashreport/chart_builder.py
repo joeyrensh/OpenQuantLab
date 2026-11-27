@@ -2932,27 +2932,11 @@ class ChartBuilder:
                         )
                     )
 
-        # Reserve the graph's bottom strip for the external annual metric chips
-        # and keep the date labels directly between the plot and the chips.
-        screen_width = client_width if client_width and client_width > 0 else 1440
-        if screen_width >= 1200:
-            page_width = min(screen_width, 260 * 96 / 25.4)
-        elif screen_width <= 550:
-            page_width = screen_width * 0.99 - 20
-        else:
-            page_width = screen_width
-        graph_width = max(240, page_width - 28)
-        aspect_ratio = 1.6 if screen_width <= 550 else 2.2
-        graph_height = graph_width / aspect_ratio
-        metric_font = max(14.4, min(graph_width * 0.025, 20.0))
-        metric_panel_height = 2 * (metric_font * 1.2 + 10) + 8
-        date_font = max(16.8, min(graph_width * 0.025, 24.0))
-        date_label_height = date_font
-        panel_y = metric_panel_height / graph_height
-        date_band = date_label_height / graph_height
-        date_label_y = panel_y
-        chart_domain_bottom = min(0.65, panel_y + date_band)
-        CHART_DOMAIN_Y = [round(chart_domain_bottom, 3), 1.0]
+        # Annual metrics live in a separate CSS grid row. Let Plotly use the
+        # full graph area and place split-history date labels at its bottom;
+        # the grid's 2px row gap controls spacing to the metrics.
+        date_label_y = 0.0
+        CHART_DOMAIN_Y = [0.0, 1.0]
 
         if split_history:
             for date, x_position in (
@@ -3095,6 +3079,7 @@ class ChartBuilder:
             xaxis=dict(
                 type="date",
                 gridcolor=cfg["gridcolor"],
+                automargin=True,
                 tickfont=dict(
                     size=base_font, color=text_color, family=self.font_family
                 ),
@@ -3121,6 +3106,7 @@ class ChartBuilder:
             xaxis2=dict(
                 type="date",
                 domain=xaxis2_domain or [0.0, 1.0],
+                automargin=True,
                 tickfont=dict(
                     size=base_font, color=text_color, family=self.font_family
                 ),

@@ -794,12 +794,11 @@ class BacktestPage:
                         "padding": 0,
                         "width": "100%",
                         "height": "100%",
-                        "aspectRatio": 1.6 if width <= 550 else 2.2,
                     },
                     mathjax=True,
                 ),
                 metrics,
-                {"display": "block"},
+                {"display": "grid"},
             )
 
         @callback(
@@ -1387,10 +1386,10 @@ class BacktestPage:
                         ),
                     ],
                     id={"type": "collapsible", "page": "backtest", "index": 0},
+                    className="annual-return-layout",
                     style={
-                        "display": "block",
+                        "display": "grid",
                         "width": "100%",
-                        "position": "relative",
                     },
                 ),
             ],

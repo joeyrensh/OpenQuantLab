@@ -77,16 +77,12 @@ class ChartCallback:
             "height": "auto",
         }
 
-        # 判断长宽比逻辑
+        # Annual Return's ratio belongs to its chart-plus-metrics wrapper.
         if chart_type == "annual_return":
-            if client_width <= 550:
-                aspect_ratio = "1.6 / 1"
-            else:
-                aspect_ratio = "2.2 / 1"
-        else:
-            aspect_ratio = "1.6 / 1"
+            base_style["height"] = "100%"
+            return base_style
 
-        base_style["aspectRatio"] = aspect_ratio
+        base_style["aspectRatio"] = "1.6 / 1"
         return base_style
 
     @staticmethod
